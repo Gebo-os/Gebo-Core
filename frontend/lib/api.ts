@@ -1,12 +1,18 @@
 import type {
   Action,
+  AutonomyScore,
   ChatResponse,
   CodexStatus,
+  EvolutionEvent,
+  EvolutionStatus,
   Memory,
   Reflex,
   ReflexCreatePayload,
   ReflexEvent,
+  ScoreActionPayload,
   Status,
+  SuggestUpgradePayload,
+  UpgradeSuggestion,
   WikiStatus,
 } from "./types";
 
@@ -121,6 +127,46 @@ export async function toggleReflex(id: number): Promise<Reflex> {
 
 export async function getReflexEvents(): Promise<ReflexEvent[]> {
   return request("/reflex-events");
+}
+
+export async function getEvolutionStatus(): Promise<EvolutionStatus> {
+  return request("/evolution/status");
+}
+
+export async function getEvolutionEvents(): Promise<EvolutionEvent[]> {
+  return request("/evolution/events");
+}
+
+export async function getEvolutionScores(): Promise<AutonomyScore[]> {
+  return request("/evolution/scores");
+}
+
+export async function getEvolutionUpgrades(): Promise<UpgradeSuggestion[]> {
+  return request("/evolution/upgrades");
+}
+
+export async function scoreAction(body: ScoreActionPayload): Promise<unknown> {
+  return request("/evolution/score-action", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function suggestUpgrade(
+  body: SuggestUpgradePayload
+): Promise<unknown> {
+  return request("/evolution/suggest-upgrade", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function approveUpgrade(id: number): Promise<unknown> {
+  return request(`/evolution/upgrades/${id}/approve`, { method: "POST" });
+}
+
+export async function rejectUpgrade(id: number): Promise<unknown> {
+  return request(`/evolution/upgrades/${id}/reject`, { method: "POST" });
 }
 
 export function getExportUrl(): string {

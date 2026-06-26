@@ -79,6 +79,73 @@ export interface ReflexCreatePayload {
   enabled: boolean;
 }
 
+export interface EvolutionStatus {
+  average_autonomy_score: number | null;
+  total_evolution_events: number;
+  proposed_upgrades: number;
+  approved_upgrades: number;
+  completed_upgrades: number;
+  rejected_upgrades: number;
+  latest_lesson: string | null;
+  top_recommended_upgrade: UpgradeSuggestion | null;
+}
+
+export interface EvolutionEvent {
+  id: number;
+  created_at: string;
+  source_type: string;
+  source_id: number | null;
+  lesson: string;
+  score: number;
+  recommended_upgrade: string | null;
+  status: string;
+}
+
+export interface AutonomyScore {
+  id: number;
+  created_at: string;
+  action_id: number | null;
+  mission_value: number;
+  speed_score: number;
+  risk_score: number;
+  approval_score: number;
+  memory_impact: number;
+  product_impact: number;
+  money_impact: number;
+  total_score: number;
+  notes: string | null;
+}
+
+export interface UpgradeSuggestion {
+  id: number;
+  created_at: string;
+  upgrade_type: string;
+  title: string;
+  description: string;
+  reason: string;
+  status: string;
+  proposed_action_id: number | null;
+}
+
+export interface ScoreActionPayload {
+  action_id: number;
+  mission_value: number;
+  speed_score: number;
+  risk_score: number;
+  approval_score: number;
+  memory_impact: number;
+  product_impact: number;
+  money_impact: number;
+  notes?: string;
+}
+
+export interface SuggestUpgradePayload {
+  upgrade_type: string;
+  title: string;
+  description: string;
+  reason: string;
+}
+
 export interface ProposedActionSummary {
   id: number;
   action_type: string;

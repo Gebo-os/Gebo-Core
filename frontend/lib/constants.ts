@@ -40,6 +40,12 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Memory-aware pattern automation",
   },
   {
+    href: "/evolution",
+    label: "Evolution",
+    shortLabel: "Evolve",
+    description: "Self-improving autonomy loop",
+  },
+  {
     href: "/build-log",
     label: "Build Log",
     shortLabel: "Log",

@@ -198,6 +198,16 @@ Memory-aware automation — pattern → proposal → approval → execution → 
 
 ---
 
+## Gebo Evolution Loop
+
+Behavioral self-improvement — score outcomes, learn patterns, propose upgrades (reflex / tool / agent).
+
+- Page: `/evolution`
+- Spec: [`GEBO-EVOLUTION-LOOP.md`](GEBO-EVOLUTION-LOOP.md)
+- Stack: Memory → Actions → Reflexes → **Evolution** → (Throne, planned)
+
+---
+
 ## Offline knowledge wiki (free, local)
 
 Gebo can consult a free offline knowledge base (a Kiwix **ZIM** file, e.g. Wikipedia)

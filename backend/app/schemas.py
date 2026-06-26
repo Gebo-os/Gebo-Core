@@ -134,3 +134,70 @@ class AgentItem(BaseModel):
     activation_trigger: str
     status: str
     tier: str
+
+
+class ScoreActionRequest(BaseModel):
+    action_id: int
+    mission_value: int = Field(ge=1, le=10)
+    speed_score: int = Field(ge=1, le=10)
+    risk_score: int = Field(ge=1, le=10)
+    approval_score: int = Field(ge=1, le=10)
+    memory_impact: int = Field(ge=1, le=10)
+    product_impact: int = Field(ge=1, le=10)
+    money_impact: int = Field(ge=1, le=10)
+    notes: str = Field(default="", max_length=MAX_ACTION_DESC)
+
+
+class SuggestUpgradeRequest(BaseModel):
+    upgrade_type: str = Field(max_length=64)
+    title: str = Field(min_length=1, max_length=MAX_ACTION_TITLE)
+    description: str = Field(max_length=MAX_ACTION_DESC)
+    reason: str = Field(max_length=MAX_ACTION_DESC)
+
+
+class EvolutionEventItem(BaseModel):
+    id: int
+    created_at: str
+    source_type: str
+    source_id: Optional[int]
+    lesson: str
+    score: int
+    recommended_upgrade: Optional[str]
+    status: str
+
+
+class AutonomyScoreItem(BaseModel):
+    id: int
+    created_at: str
+    action_id: Optional[int]
+    mission_value: int
+    speed_score: int
+    risk_score: int
+    approval_score: int
+    memory_impact: int
+    product_impact: int
+    money_impact: int
+    total_score: int
+    notes: Optional[str]
+
+
+class UpgradeSuggestionItem(BaseModel):
+    id: int
+    created_at: str
+    upgrade_type: str
+    title: str
+    description: str
+    reason: str
+    status: str
+    proposed_action_id: Optional[int]
+
+
+class EvolutionStatusResponse(BaseModel):
+    average_autonomy_score: Optional[float]
+    total_evolution_events: int
+    proposed_upgrades: int
+    approved_upgrades: int
+    completed_upgrades: int
+    rejected_upgrades: int
+    latest_lesson: Optional[str]
+    top_recommended_upgrade: Optional[UpgradeSuggestionItem] = None

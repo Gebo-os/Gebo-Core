@@ -9,14 +9,17 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-from app import autonomy, codex_client, db, memory, ollama_client, reflexes, wiki_client
+from app import autonomy, codex_client, db, evolution, memory, ollama_client, reflexes, wiki_client
 from app.schemas import (
     ActionItem,
     ActionPropose,
+    AutonomyScoreItem,
     ChatRequest,
     ChatResponse,
     ConsentRequest,
     DetectedReflex,
+    EvolutionEventItem,
+    EvolutionStatusResponse,
     HealthResponse,
     MemoryCreate,
     MemoryItem,
@@ -24,7 +27,10 @@ from app.schemas import (
     ReflexCreate,
     ReflexEventItem,
     ReflexItem,
+    ScoreActionRequest,
     StatusResponse,
+    SuggestUpgradeRequest,
+    UpgradeSuggestionItem,
 )
 
 
@@ -95,6 +101,9 @@ def export_memory():
         "actions": db.get_actions(),
         "reflexes": db.get_reflexes(),
         "reflex_events": db.get_reflex_events(500),
+        "evolution_events": db.get_evolution_events(500),
+        "autonomy_scores": db.get_autonomy_scores(500),
+        "upgrade_suggestions": db.get_upgrade_suggestions(limit=500),
     }
     return JSONResponse(
         content=export_data,
@@ -342,6 +351,88 @@ def list_reflex_events(limit: int = 100):
         )
         for e in db.get_reflex_events(limit)
     ]
+
+
+@app.get("/evolution/status", response_model=EvolutionStatusResponse)
+def evolution_status():
+    data = evolution.get_status()
+    top = data.get("top_recommended_upgrade")
+    top_item = UpgradeSuggestionItem(**top) if top else None
+    return EvolutionStatusResponse(
+        average_autonomy_score=data["average_autonomy_score"],
+        total_evolution_events=data["total_evolution_events"],
+        proposed_upgrades=data["proposed_upgrades"],
+        approved_upgrades=data["approved_upgrades"],
+        completed_upgrades=data["completed_upgrades"],
+        rejected_upgrades=data["rejected_upgrades"],
+        latest_lesson=data["latest_lesson"],
+        top_recommended_upgrade=top_item,
+    )
+
+
+@app.get("/evolution/events", response_model=list[EvolutionEventItem])
+def list_evolution_events(limit: int = 100):
+    return [EvolutionEventItem(**e) for e in db.get_evolution_events(limit)]
+
+
+@app.get("/evolution/scores", response_model=list[AutonomyScoreItem])
+def list_autonomy_scores(limit: int = 100):
+    return [AutonomyScoreItem(**s) for s in db.get_autonomy_scores(limit)]
+
+
+@app.get("/evolution/upgrades", response_model=list[UpgradeSuggestionItem])
+def list_upgrade_suggestions(status: str | None = None, limit: int = 100):
+    return [
+        UpgradeSuggestionItem(**u)
+        for u in db.get_upgrade_suggestions(status=status, limit=limit)
+    ]
+
+
+@app.post("/evolution/score-action")
+def score_action_endpoint(body: ScoreActionRequest):
+    try:
+        return evolution.score_action(
+            action_id=body.action_id,
+            mission_value=body.mission_value,
+            speed_score=body.speed_score,
+            risk_score=body.risk_score,
+            approval_score=body.approval_score,
+            memory_impact=body.memory_impact,
+            product_impact=body.product_impact,
+            money_impact=body.money_impact,
+            notes=body.notes or None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/evolution/suggest-upgrade")
+def suggest_upgrade_endpoint(body: SuggestUpgradeRequest):
+    try:
+        return evolution.suggest_upgrade(
+            upgrade_type=body.upgrade_type,
+            title=body.title,
+            description=body.description,
+            reason=body.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/evolution/upgrades/{upgrade_id}/approve")
+def approve_upgrade_endpoint(upgrade_id: int):
+    try:
+        return evolution.approve_upgrade(upgrade_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/evolution/upgrades/{upgrade_id}/reject")
+def reject_upgrade_endpoint(upgrade_id: int):
+    try:
+        return evolution.reject_upgrade(upgrade_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.post("/actions/{action_id}/run")

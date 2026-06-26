@@ -1594,3 +1594,83 @@ select {
   color: var(--text-tertiary);
   margin: 0;
 }
+
+/* Gebo Evolution Loop */
+.evolution-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.evolution-status-panel {
+  padding: var(--space-md);
+}
+
+.evolution-loop-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+  line-height: 1.5;
+}
+
+.evolution-latest-lesson {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: var(--space-md) 0 0;
+  line-height: 1.45;
+}
+
+.evolution-section {
+  margin-bottom: var(--space-md);
+}
+
+.evolution-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+}
+
+.evolution-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.evolution-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-sm);
+}
+
+.evolution-reason {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0;
+  font-style: italic;
+}
+
+.reflex-card-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: auto;
+}
+
+.evolution-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.evolution-timeline-item {
+  padding: var(--space-md);
+}
+
+.evolution-score-row {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+}

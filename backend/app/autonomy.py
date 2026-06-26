@@ -273,8 +273,16 @@ def _background_run(action_id: int, action_type: str, payload: dict[str, Any]) -
         result = execute_tool(action_type, payload)
         status = "completed" if result.get("ok", True) else "failed"
         db.update_action_result(action_id, status, result)
+        from app import evolution
+
+        evolution.record_action_completion(action_id, status, result)
     except Exception as exc:  # noqa: BLE001
         db.update_action_result(action_id, "failed", {"ok": False, "error": str(exc)})
+        from app import evolution
+
+        evolution.record_action_completion(
+            action_id, "failed", {"ok": False, "error": str(exc)}
+        )
 
 
 def run_action(action_id: int) -> dict[str, Any]:
@@ -302,7 +310,15 @@ def run_action(action_id: int) -> dict[str, Any]:
         result = execute_tool(action_type, payload)
         status = "completed" if result.get("ok", True) else "failed"
         db.update_action_result(action_id, status, result)
+        from app import evolution
+
+        evolution.record_action_completion(action_id, status, result)
         return result
     except Exception as exc:
         db.update_action_result(action_id, "failed", {"ok": False, "error": str(exc)})
+        from app import evolution
+
+        evolution.record_action_completion(
+            action_id, "failed", {"ok": False, "error": str(exc)}
+        )
         raise
