@@ -102,6 +102,51 @@ def insert_memory(memory_type: str, content: str, source: str) -> int:
         return cur.lastrowid
 
 
+def update_memory(memory_id: int, content: str, source: str) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE memories
+            SET content = ?, source = ?, created_at = ?
+            WHERE id = ?
+            """,
+            (content, source, utc_now(), memory_id),
+        )
+        conn.commit()
+
+
+def find_project_memory_id(repo_key: str) -> int | None:
+    """Find existing project memory by repo URL or local path marker."""
+    key = repo_key.rstrip("/").rstrip(".git")
+    if not key:
+        return None
+    markers = (f"URL: {key}", f"Local path: {key}")
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, content FROM memories
+            WHERE memory_type = 'project'
+            ORDER BY id DESC
+            """
+        ).fetchall()
+        for row in rows:
+            content = row["content"] or ""
+            if any(m in content for m in markers):
+                return row["id"]
+            if key in content:
+                return row["id"]
+    return None
+
+
+def upsert_project_memory(content: str, source: str, repo_key: str) -> tuple[int, bool]:
+    """Return (memory_id, created). created=False means updated in place."""
+    existing = find_project_memory_id(repo_key)
+    if existing is not None:
+        update_memory(existing, content, source)
+        return existing, False
+    return insert_memory("project", content, source), True
+
+
 def get_memories(limit: int = 100) -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(

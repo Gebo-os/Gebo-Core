@@ -65,20 +65,21 @@ def detect_action_intents(user_message: str, consent: bool) -> list[dict[str, An
         r"dont forget",
     ]
     if any(re.search(p, normalized) for p in remember_patterns):
-        if consent:
-            return proposals
-        proposals.append(
-            {
-                "action_type": "save_memory",
-                "title": "Save memory",
-                "description": "Save the user's statement to permanent memory.",
-                "payload_json": {
-                    "memory_type": "manual",
-                    "content": user_message,
-                    "source": "chat_proposal",
-                },
-            }
-        )
+        # Consent ON → handle_remember_direct saves immediately; skip duplicate proposal.
+        # Do not return early — other intents (plan, codex, etc.) may still apply.
+        if not consent:
+            proposals.append(
+                {
+                    "action_type": "save_memory",
+                    "title": "Save memory",
+                    "description": "Save the user's statement to permanent memory.",
+                    "payload_json": {
+                        "memory_type": "manual",
+                        "content": user_message,
+                        "source": "chat_proposal",
+                    },
+                }
+            )
 
     if re.search(r"\b(make|create|build)\s+(a\s+)?plan\b", normalized):
         proposals.append(

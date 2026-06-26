@@ -130,6 +130,13 @@ def build_memory_content(repo: dict) -> str:
     return "\n".join(lines)
 
 
+def repo_key(repo: dict) -> str:
+    url = (repo.get("url") or "").rstrip("/").rstrip(".git")
+    if url and url != f"local://{repo.get('name', '')}":
+        return url
+    return repo.get("path") or repo.get("name") or ""
+
+
 def save_via_api(content: str, source: str) -> bool:
     try:
         tagged = f"[source:{source}]\n{content}"
@@ -144,16 +151,17 @@ def save_via_api(content: str, source: str) -> bool:
         return False
 
 
-def save_via_db(content: str, source: str) -> bool:
+def save_via_db(content: str, source: str, key: str) -> tuple[bool, bool]:
+    """Return (ok, created)."""
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
         from app import db
 
         db.init_db()
-        db.insert_memory("project", content, source)
-        return True
+        _, created = db.upsert_project_memory(content, source, key)
+        return True, created
     except Exception:
-        return False
+        return False, False
 
 
 def main() -> int:
@@ -195,19 +203,27 @@ def main() -> int:
         return 1
 
     print(f"Found {len(repos)} repos — ingesting into Gebo memory...")
+    created = updated = 0
     for repo in repos:
         content = build_memory_content(repo)
         source = repo.get("source", "repo_ingest")
+        key = repo_key(repo)
         ok = save_via_api(content, source)
+        was_created = True
         if not ok:
-            ok = save_via_db(content, source)
+            ok, was_created = save_via_db(content, source, key)
         if ok:
             ingested += 1
-            print(f"  + {repo.get('name', '?')}")
+            if was_created:
+                created += 1
+                print(f"  + {repo.get('name', '?')}")
+            else:
+                updated += 1
+                print(f"  ~ {repo.get('name', '?')} (updated)")
         else:
             print(f"  ! failed: {repo.get('name', '?')}")
 
-    print(f"Done. {ingested}/{len(repos)} memories saved.")
+    print(f"Done. {ingested}/{len(repos)} memories saved ({created} new, {updated} updated).")
     return 0 if ingested else 1
 
 
