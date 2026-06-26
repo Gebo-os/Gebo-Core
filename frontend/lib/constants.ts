@@ -34,6 +34,12 @@ export const NAV_ITEMS: NavItem[] = [
     description: "Safe autonomy queue",
   },
   {
+    href: "/reflexes",
+    label: "Reflexes",
+    shortLabel: "Reflex",
+    description: "Memory-aware pattern automation",
+  },
+  {
     href: "/build-log",
     label: "Build Log",
     shortLabel: "Log",

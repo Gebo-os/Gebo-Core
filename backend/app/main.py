@@ -9,17 +9,21 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-from app import autonomy, codex_client, db, memory, ollama_client, wiki_client
+from app import autonomy, codex_client, db, memory, ollama_client, reflexes, wiki_client
 from app.schemas import (
     ActionItem,
     ActionPropose,
     ChatRequest,
     ChatResponse,
     ConsentRequest,
+    DetectedReflex,
     HealthResponse,
     MemoryCreate,
     MemoryItem,
     ProposedAction,
+    ReflexCreate,
+    ReflexEventItem,
+    ReflexItem,
     StatusResponse,
 )
 
@@ -89,6 +93,8 @@ def export_memory():
         "messages": db.get_all_messages(),
         "settings": db.get_all_settings(),
         "actions": db.get_actions(),
+        "reflexes": db.get_reflexes(),
+        "reflex_events": db.get_reflex_events(500),
     }
     return JSONResponse(
         content=export_data,
@@ -136,6 +142,8 @@ async def chat(body: ChatRequest):
     db.insert_message("assistant", reply)
 
     proposed_actions: list[ProposedAction] = []
+    existing_types: set[str] = set()
+
     intents = autonomy.detect_action_intents(user_message, consent)
     for intent in intents:
         action_id = db.insert_action(
@@ -145,6 +153,7 @@ async def chat(body: ChatRequest):
             intent["payload_json"],
             "proposed",
         )
+        existing_types.add(intent["action_type"])
         proposed_actions.append(
             ProposedAction(
                 id=action_id,
@@ -155,10 +164,27 @@ async def chat(body: ChatRequest):
             )
         )
 
+    detected_reflex_raw, reflex_proposals = reflexes.detect_and_propose(
+        user_message, existing_types
+    )
+    for rp in reflex_proposals:
+        proposed_actions.append(
+            ProposedAction(
+                id=rp["id"],
+                action_type=rp["action_type"],
+                title=rp["title"],
+                description=rp["description"],
+                status=rp["status"],
+            )
+        )
+
+    detected_reflexes = [DetectedReflex(**d) for d in detected_reflex_raw]
+
     return ChatResponse(
         reply=reply,
         recalled_memories=[MemoryItem(**m) for m in recalled],
         proposed_actions=proposed_actions,
+        detected_reflexes=detected_reflexes,
         wiki_sources=[r["title"] for r in wiki_results],
     )
 
@@ -231,6 +257,91 @@ def wiki_search(q: str, limit: int = 3):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     return {"query": q, "results": wiki_client.search(q, limit)}
+
+
+@app.get("/reflexes", response_model=list[ReflexItem])
+def list_reflexes():
+    items: list[ReflexItem] = []
+    for r in db.get_reflexes():
+        items.append(
+            ReflexItem(
+                id=r["id"],
+                name=r["name"],
+                description=r["description"],
+                trigger_type=r["trigger_type"],
+                trigger_pattern=r["trigger_pattern"],
+                action_type=r["action_type"],
+                approval_required=bool(r["approval_required"]),
+                enabled=bool(r["enabled"]),
+                created_at=r["created_at"],
+                last_used=db.get_reflex_last_used(r["id"]),
+            )
+        )
+    return items
+
+
+@app.post("/reflexes", response_model=ReflexItem)
+def create_reflex(body: ReflexCreate):
+    if not autonomy.is_valid_action_type(body.action_type):
+        raise HTTPException(status_code=400, detail="Invalid action type")
+    reflex_id = db.insert_reflex(
+        name=body.name,
+        description=body.description,
+        trigger_type=body.trigger_type,
+        trigger_pattern=body.trigger_pattern,
+        action_type=body.action_type,
+        approval_required=body.approval_required,
+        enabled=body.enabled,
+    )
+    r = db.get_reflex(reflex_id)
+    assert r is not None
+    return ReflexItem(
+        id=r["id"],
+        name=r["name"],
+        description=r["description"],
+        trigger_type=r["trigger_type"],
+        trigger_pattern=r["trigger_pattern"],
+        action_type=r["action_type"],
+        approval_required=bool(r["approval_required"]),
+        enabled=bool(r["enabled"]),
+        created_at=r["created_at"],
+        last_used=None,
+    )
+
+
+@app.post("/reflexes/{reflex_id}/toggle", response_model=ReflexItem)
+def toggle_reflex_endpoint(reflex_id: int):
+    updated = db.toggle_reflex(reflex_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Reflex not found")
+    return ReflexItem(
+        id=updated["id"],
+        name=updated["name"],
+        description=updated["description"],
+        trigger_type=updated["trigger_type"],
+        trigger_pattern=updated["trigger_pattern"],
+        action_type=updated["action_type"],
+        approval_required=bool(updated["approval_required"]),
+        enabled=bool(updated["enabled"]),
+        created_at=updated["created_at"],
+        last_used=db.get_reflex_last_used(updated["id"]),
+    )
+
+
+@app.get("/reflex-events", response_model=list[ReflexEventItem])
+def list_reflex_events(limit: int = 100):
+    return [
+        ReflexEventItem(
+            id=e["id"],
+            reflex_id=e.get("reflex_id"),
+            reflex_name=e.get("reflex_name"),
+            detected_at=e["detected_at"],
+            input_text=e["input_text"],
+            proposed_action_id=e.get("proposed_action_id"),
+            result=e.get("result"),
+        )
+        for e in db.get_reflex_events(limit)
+    ]
 
 
 @app.post("/actions/{action_id}/run")

@@ -58,7 +58,51 @@ class ChatResponse(BaseModel):
     reply: str
     recalled_memories: list[MemoryItem]
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
+    detected_reflexes: list["DetectedReflex"] = Field(default_factory=list)
     wiki_sources: list[str] = Field(default_factory=list)
+
+
+class DetectedReflex(BaseModel):
+    reflex_id: int
+    name: str
+    description: str
+    trigger_pattern: str
+    action_type: str
+    approval_required: bool
+    proposals_created: int = 0
+
+
+class ReflexItem(BaseModel):
+    id: int
+    name: str
+    description: str
+    trigger_type: str
+    trigger_pattern: str
+    action_type: str
+    approval_required: bool
+    enabled: bool
+    created_at: str
+    last_used: Optional[str] = None
+
+
+class ReflexCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=MAX_ACTION_TITLE)
+    description: str = Field(max_length=MAX_ACTION_DESC)
+    trigger_type: str = Field(default="keyword", max_length=32)
+    trigger_pattern: str = Field(min_length=1, max_length=500)
+    action_type: str = Field(max_length=64)
+    approval_required: bool = True
+    enabled: bool = True
+
+
+class ReflexEventItem(BaseModel):
+    id: int
+    reflex_id: Optional[int]
+    reflex_name: Optional[str] = None
+    detected_at: str
+    input_text: str
+    proposed_action_id: Optional[int]
+    result: Optional[str]
 
 
 class ActionPropose(BaseModel):

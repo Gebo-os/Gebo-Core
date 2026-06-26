@@ -114,6 +114,16 @@ export function SettingsPanel() {
         </div>
         <div className="settings-row">
           <div className="settings-row-info">
+            <h4>Gebo Gym</h4>
+            <p>
+              Official training loop: Learn → Grow → Act → Verify → Repeat.
+              Run <code>.\scripts\gebo-gym.ps1</code> from the repo root. See{" "}
+              <code>GEBO-GYM.md</code>.
+            </p>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
             <h4>GitHub Repo Memory</h4>
             <p>
               Read-only ingest from GitHub or local git repos. Run{" "}

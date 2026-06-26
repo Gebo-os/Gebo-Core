@@ -160,7 +160,41 @@ This reads repo metadata and README excerpts only. Nothing is pushed or modified
 
 If `gh` is not logged in, the script falls back to local git repos under Desktop and `.agents`.
 
+Re-ingest **updates** existing project memories (same repo URL/path) instead of duplicating.
+
 See also: `AUDIT.md` for security review.
+
+---
+
+## Gebo Gym (official training algorithm)
+
+**Learn → Grow → Act → Verify → Repeat**
+
+Gebo Gym is Bb's training loop for the Owner NODE — how Gebo learns from repos, grows through chat, acts with approval, verifies with tests, and repeats.
+
+```powershell
+.\scripts\gebo-gym.ps1
+```
+
+| Phase | Automated? | What |
+|-------|------------|------|
+| Learn | Yes | Repo ingest → project memory |
+| Grow | Console | Chat with recall + wiki |
+| Act | Console | Approve actions / Codex tasks |
+| Verify | Yes | `pytest -q` |
+| Repeat | Yes | Run Gebo Gym again |
+
+Full spec: [`GEBO-GYM.md`](GEBO-GYM.md)
+
+---
+
+## Gebo Reflex Engine
+
+Memory-aware automation — pattern → proposal → approval → execution → stronger memory.
+
+- Page: `/reflexes`
+- Spec: [`GEBO-REFLEX-ENGINE.md`](GEBO-REFLEX-ENGINE.md)
+- Pairs with Gebo Gym: Gym ingests repos; Reflexes detect chat patterns
 
 ---
 
@@ -232,6 +266,8 @@ Tests use an isolated temp SQLite database and mock Ollama — they never touch 
 gebo-core-private/
   backend/          FastAPI + SQLite + Ollama + Autonomy
   frontend/         Next.js dashboard
+  scripts/          gebo-gym.ps1 — official training algorithm
+  GEBO-GYM.md       Gebo Gym spec (Learn → Grow → Act → Verify → Repeat)
   docker-compose.yml
   README.md
 ```

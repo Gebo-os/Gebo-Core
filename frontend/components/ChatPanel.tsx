@@ -79,6 +79,7 @@ export function ChatPanel() {
           content: res.reply,
           recalled: res.recalled_memories,
           proposedActionIds: res.proposed_actions.map((a) => a.id),
+          detectedReflexes: res.detected_reflexes,
           wikiSources: res.wiki_sources,
           timestamp: new Date().toISOString(),
         },
@@ -192,6 +193,20 @@ export function ChatPanel() {
               </div>
             )}
 
+            {msg.detectedReflexes && msg.detectedReflexes.length > 0 && (
+              <div className="chat-recalled">
+                <div className="chat-recalled-label">Reflex detected</div>
+                {msg.detectedReflexes.map((reflex) => (
+                  <div key={reflex.reflex_id} className="chat-recalled-item">
+                    <span className="tag tag-green">{reflex.name}</span>
+                    {reflex.proposals_created > 0
+                      ? ` · ${reflex.proposals_created} action(s) proposed`
+                      : " · pattern matched"}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {msg.role === "assistant" && (
               <div className="chat-message-actions">
                 <button
@@ -204,6 +219,11 @@ export function ChatPanel() {
                 {msg.proposedActionIds && msg.proposedActionIds.length > 0 && (
                   <Link href="/actions" className="btn btn-sm btn-ghost">
                     View proposed actions →
+                  </Link>
+                )}
+                {msg.detectedReflexes && msg.detectedReflexes.length > 0 && (
+                  <Link href="/reflexes" className="btn btn-sm btn-ghost">
+                    View reflexes →
                   </Link>
                 )}
               </div>

@@ -49,6 +49,27 @@ def init_db() -> None:
                 status TEXT NOT NULL,
                 result_json TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS reflexes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                trigger_type TEXT NOT NULL,
+                trigger_pattern TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                approval_required INTEGER NOT NULL DEFAULT 1,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS reflex_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                reflex_id INTEGER,
+                detected_at TEXT NOT NULL,
+                input_text TEXT NOT NULL,
+                proposed_action_id INTEGER,
+                result TEXT
+            );
             """
         )
         conn.execute(
@@ -56,6 +77,9 @@ def init_db() -> None:
             ("consent", "false"),
         )
         conn.commit()
+    from app.reflexes import seed_default_reflexes
+
+    seed_default_reflexes()
 
 
 @contextmanager
@@ -318,3 +342,124 @@ def get_all_settings() -> dict[str, str]:
     with get_connection() as conn:
         rows = conn.execute("SELECT key, value FROM settings").fetchall()
         return {r["key"]: r["value"] for r in rows}
+
+
+def count_reflexes() -> int:
+    with get_connection() as conn:
+        row = conn.execute("SELECT COUNT(*) AS c FROM reflexes").fetchone()
+        return row["c"]
+
+
+def insert_reflex(
+    name: str,
+    description: str,
+    trigger_type: str,
+    trigger_pattern: str,
+    action_type: str,
+    approval_required: bool = True,
+    enabled: bool = True,
+) -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO reflexes
+            (name, description, trigger_type, trigger_pattern, action_type,
+             approval_required, enabled, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name,
+                description,
+                trigger_type,
+                trigger_pattern,
+                action_type,
+                1 if approval_required else 0,
+                1 if enabled else 0,
+                utc_now(),
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_reflex(reflex_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM reflexes WHERE id = ?", (reflex_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_reflexes(enabled_only: bool = False) -> list[dict]:
+    with get_connection() as conn:
+        if enabled_only:
+            rows = conn.execute(
+                "SELECT * FROM reflexes WHERE enabled = 1 ORDER BY id ASC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM reflexes ORDER BY id ASC"
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def toggle_reflex(reflex_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM reflexes WHERE id = ?", (reflex_id,)
+        ).fetchone()
+        if not row:
+            return None
+        new_enabled = 0 if row["enabled"] else 1
+        conn.execute(
+            "UPDATE reflexes SET enabled = ? WHERE id = ?",
+            (new_enabled, reflex_id),
+        )
+        conn.commit()
+        return get_reflex(reflex_id)
+
+
+def get_reflex_last_used(reflex_id: int) -> str | None:
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT MAX(detected_at) AS last_used
+            FROM reflex_events WHERE reflex_id = ?
+            """,
+            (reflex_id,),
+        ).fetchone()
+        return row["last_used"] if row and row["last_used"] else None
+
+
+def insert_reflex_event(
+    reflex_id: int,
+    input_text: str,
+    proposed_action_id: int | None,
+    result: str,
+) -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO reflex_events
+            (reflex_id, detected_at, input_text, proposed_action_id, result)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (reflex_id, utc_now(), input_text, proposed_action_id, result),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_reflex_events(limit: int = 100) -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT e.*, r.name AS reflex_name
+            FROM reflex_events e
+            LEFT JOIN reflexes r ON r.id = e.reflex_id
+            ORDER BY e.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]

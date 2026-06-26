@@ -31,8 +31,52 @@ export interface ChatMessage {
   content: string;
   recalled?: RecalledMemory[];
   proposedActionIds?: number[];
+  detectedReflexes?: DetectedReflex[];
   wikiSources?: string[];
   timestamp: string;
+}
+
+export interface DetectedReflex {
+  reflex_id: number;
+  name: string;
+  description: string;
+  trigger_pattern: string;
+  action_type: string;
+  approval_required: boolean;
+  proposals_created: number;
+}
+
+export interface Reflex {
+  id: number;
+  name: string;
+  description: string;
+  trigger_type: string;
+  trigger_pattern: string;
+  action_type: string;
+  approval_required: boolean;
+  enabled: boolean;
+  created_at: string;
+  last_used: string | null;
+}
+
+export interface ReflexEvent {
+  id: number;
+  reflex_id: number | null;
+  reflex_name: string | null;
+  detected_at: string;
+  input_text: string;
+  proposed_action_id: number | null;
+  result: string | null;
+}
+
+export interface ReflexCreatePayload {
+  name: string;
+  description: string;
+  trigger_type: string;
+  trigger_pattern: string;
+  action_type: string;
+  approval_required: boolean;
+  enabled: boolean;
 }
 
 export interface ProposedActionSummary {
@@ -47,6 +91,7 @@ export interface ChatResponse {
   reply: string;
   recalled_memories: RecalledMemory[];
   proposed_actions: ProposedActionSummary[];
+  detected_reflexes?: DetectedReflex[];
   wiki_sources?: string[];
 }
 

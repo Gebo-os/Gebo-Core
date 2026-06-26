@@ -137,6 +137,7 @@ def test_chat_mocked(client):
     assert data["reply"] == "Test reply from Gebo."
     assert "recalled_memories" in data
     assert "proposed_actions" in data
+    assert "detected_reflexes" in data
     assert "wiki_sources" in data
 
 

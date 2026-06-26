@@ -235,7 +235,8 @@ def execute_tool(action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
 
     if action_type == "write_project_note":
         content = payload.get("content", "")
-        memory_id = db.insert_memory("project_note", content, "action")
+        memory_type = payload.get("memory_type", "project_note")
+        memory_id = db.insert_memory(memory_type, content, "action")
         return {"ok": True, "memory_id": memory_id, "message": "Project note saved."}
 
     if action_type == "export_memory":

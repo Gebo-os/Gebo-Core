@@ -1435,3 +1435,162 @@ select {
     --content-max: 1280px;
   }
 }
+
+/* Gebo Reflex Engine */
+.reflex-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.reflex-status-panel {
+  padding: var(--space-md);
+}
+
+.reflex-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.reflex-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reflex-stat-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--green);
+  margin-top: 0.25rem;
+}
+
+.reflex-loop-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.reflex-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.reflex-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-md);
+}
+
+.reflex-section-header .reflex-section-title {
+  margin-bottom: 0;
+}
+
+.reflex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.reflex-card {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.reflex-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.reflex-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.reflex-card-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.reflex-meta {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.reflex-meta dt {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.reflex-meta dd {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.reflex-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+}
+
+.reflex-create-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.reflex-events {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.reflex-event {
+  padding: var(--space-md);
+}
+
+.reflex-event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: 0.5rem;
+}
+
+.reflex-event-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.reflex-event-input {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin: 0 0 0.35rem;
+}
+
+.reflex-event-result {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}

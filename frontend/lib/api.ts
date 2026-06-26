@@ -3,6 +3,9 @@ import type {
   ChatResponse,
   CodexStatus,
   Memory,
+  Reflex,
+  ReflexCreatePayload,
+  ReflexEvent,
   Status,
   WikiStatus,
 } from "./types";
@@ -99,6 +102,25 @@ export async function getCodexStatus(): Promise<CodexStatus> {
 
 export async function getWikiStatus(): Promise<WikiStatus> {
   return request("/wiki/status");
+}
+
+export async function getReflexes(): Promise<Reflex[]> {
+  return request("/reflexes");
+}
+
+export async function createReflex(body: ReflexCreatePayload): Promise<Reflex> {
+  return request("/reflexes", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function toggleReflex(id: number): Promise<Reflex> {
+  return request(`/reflexes/${id}/toggle`, { method: "POST" });
+}
+
+export async function getReflexEvents(): Promise<ReflexEvent[]> {
+  return request("/reflex-events");
 }
 
 export function getExportUrl(): string {
