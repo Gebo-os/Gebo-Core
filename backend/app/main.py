@@ -2,17 +2,29 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 load_dotenv()
 
-from app import autonomy, codex_client, db, evolution, memory, ollama_client, reflexes, wiki_client
+from app import (
+    agent_runtime,
+    autonomy,
+    codex_client,
+    db,
+    evolution,
+    memory,
+    ollama_client,
+    reflexes,
+    wiki_client,
+)
 from app.schemas import (
     ActionItem,
     ActionPropose,
+    AgentRuntimeStatusResponse,
     AutonomyScoreItem,
     ChatRequest,
     ChatResponse,
@@ -23,6 +35,8 @@ from app.schemas import (
     HealthResponse,
     MemoryCreate,
     MemoryItem,
+    NetworkSettingsRequest,
+    NetworkSettingsResponse,
     ProposedAction,
     ReflexCreate,
     ReflexEventItem,
@@ -37,28 +51,100 @@ from app.schemas import (
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db.init_db()
+    agent_runtime.start()
     yield
+    agent_runtime.stop()
 
 
 app = FastAPI(title="Gebo Core Private", lifespan=lifespan)
 
-CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
-).split(",")
+DEFAULT_LOCALHOST_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+]
+
+BIND_HOST = os.getenv("GEBO_BIND_HOST", "0.0.0.0")
+BACKEND_PORT = os.getenv("GEBO_BACKEND_PORT", "8000")
+FRONTEND_PORT = os.getenv("GEBO_FRONTEND_PORT", "3000")
+
+
+def _env_cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "").strip()
+    if raw == "*":
+        return ["*"]
+    items = [o.strip() for o in raw.split(",") if o.strip()]
+    return items or DEFAULT_LOCALHOST_ORIGINS
+
+
+def _network_settings_payload() -> dict:
+    internet = db.get_internet_access() or os.getenv("CORS_ORIGINS", "").strip() == "*"
+    env_origins = _env_cors_origins()
+    if internet or "*" in env_origins:
+        cors_mode = "open"
+        allowed = ["*"]
+    else:
+        cors_mode = "localhost"
+        allowed = env_origins
+    backend_url = os.getenv(
+        "GEBO_BACKEND_URL",
+        f"http://127.0.0.1:{BACKEND_PORT}",
+    )
+    frontend_url = os.getenv(
+        "GEBO_FRONTEND_URL",
+        f"http://localhost:{FRONTEND_PORT}",
+    )
+    return {
+        "internet_access": internet,
+        "cors_mode": cors_mode,
+        "backend_url": backend_url,
+        "frontend_url": frontend_url,
+        "bind_host": BIND_HOST,
+        "allowed_origins": allowed,
+    }
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in CORS_ORIGINS if o.strip()],
+    allow_origins=_env_cors_origins() if _env_cors_origins() != ["*"] else ["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def dynamic_open_network_cors(request: Request, call_next):
+    """When internet access is on, allow any origin (full network access)."""
+    if request.method == "OPTIONS" and db.get_internet_access():
+        origin = request.headers.get("origin", "*")
+        return Response(
+            status_code=204,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
+    response = await call_next(request)
+    if db.get_internet_access():
+        origin = request.headers.get("origin")
+        response.headers["Access-Control-Allow-Origin"] = origin or "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
 @app.get("/health", response_model=HealthResponse)
 def health():
-    return HealthResponse(ok=True, app="Gebo Core Private")
+    runtime = agent_runtime.get_runtime_status()
+    return HealthResponse(
+        ok=True,
+        app="Gebo Core Private",
+        agent_runtime_healthy=runtime["healthy"],
+    )
 
 
 @app.get("/status", response_model=StatusResponse)
@@ -79,6 +165,17 @@ def status():
 def set_consent(body: ConsentRequest):
     db.set_setting("consent", "true" if body.allowed else "false")
     return {"consent": db.get_consent()}
+
+
+@app.get("/settings/network", response_model=NetworkSettingsResponse)
+def get_network_settings():
+    return NetworkSettingsResponse(**_network_settings_payload())
+
+
+@app.post("/settings/network", response_model=NetworkSettingsResponse)
+def set_network_settings(body: NetworkSettingsRequest):
+    db.set_internet_access(body.internet_access)
+    return NetworkSettingsResponse(**_network_settings_payload())
 
 
 @app.post("/memory")
@@ -351,6 +448,13 @@ def list_reflex_events(limit: int = 100):
         )
         for e in db.get_reflex_events(limit)
     ]
+
+
+@app.get("/agents/runtime/status", response_model=AgentRuntimeStatusResponse)
+def agents_runtime_status():
+    """Internal ops — agent heartbeat supervisor (not public agent UI)."""
+    data = agent_runtime.get_runtime_status()
+    return AgentRuntimeStatusResponse(**data)
 
 
 @app.get("/evolution/status", response_model=EvolutionStatusResponse)

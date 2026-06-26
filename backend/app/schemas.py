@@ -12,6 +12,7 @@ MAX_MEMORY_TYPE = 64
 class HealthResponse(BaseModel):
     ok: bool
     app: str
+    agent_runtime_healthy: bool = True
 
 
 class StatusResponse(BaseModel):
@@ -27,6 +28,19 @@ class StatusResponse(BaseModel):
 
 class ConsentRequest(BaseModel):
     allowed: bool
+
+
+class NetworkSettingsResponse(BaseModel):
+    internet_access: bool
+    cors_mode: str
+    backend_url: str
+    frontend_url: str
+    bind_host: str
+    allowed_origins: list[str]
+
+
+class NetworkSettingsRequest(BaseModel):
+    internet_access: bool
 
 
 class MemoryCreate(BaseModel):
@@ -201,3 +215,40 @@ class EvolutionStatusResponse(BaseModel):
     rejected_upgrades: int
     latest_lesson: Optional[str]
     top_recommended_upgrade: Optional[UpgradeSuggestionItem] = None
+
+
+class AgentRuntimeAgentItem(BaseModel):
+    agent_id: str
+    name: str
+    category: str
+    status: str
+    message: str
+    cycles: int
+    last_tick: Optional[str]
+    tier: str
+    registry_status: str
+
+
+class CodexLaneStatus(BaseModel):
+    available: bool
+    enabled: bool
+    version: Optional[str]
+    status: str
+    message: str
+    cycles: int
+    last_tick: Optional[str]
+    parallel_with_agents: bool
+    last_audit_ok: Optional[bool] = None
+
+
+class AgentRuntimeStatusResponse(BaseModel):
+    running: bool
+    started_at: Optional[str]
+    tick_interval_sec: int
+    active_agents: int
+    total_registry: int
+    healthy: bool
+    parallel_workers: int = 12
+    cycle_count: int = 0
+    codex_lane: Optional[CodexLaneStatus] = None
+    agents: list[AgentRuntimeAgentItem]

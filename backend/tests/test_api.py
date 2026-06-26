@@ -8,6 +8,24 @@ def test_health(client):
     data = r.json()
     assert data["ok"] is True
     assert "Gebo" in data["app"]
+    assert "agent_runtime_healthy" in data
+
+
+def test_agent_runtime_status(client):
+    r = client.get("/agents/runtime/status")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["running"] is True
+    assert data["active_agents"] >= 8
+    assert data["healthy"] is True
+    assert data.get("parallel_workers", 0) >= 8
+    assert "codex_lane" in data
+    assert data["codex_lane"]["parallel_with_agents"] is True
+    assert len(data["agents"]) >= 8
+    for agent in data["agents"]:
+        assert "agent_id" in agent
+        assert "status" in agent
+        assert "cycles" in agent
 
 
 def test_status_keys(client):

@@ -259,6 +259,45 @@ Tests use an isolated temp SQLite database and mock Ollama — they never touch 
 
 ---
 
+## Custom Gebo model (Ollama)
+
+Gebo ships a **Modelfile** that bakes in Presence law, memory-first behavior, and approval-gated actions.
+
+```powershell
+# From repo root — pulls llama3.2:3b, creates gebo-custom
+.\scripts\create-gebo-model.ps1
+```
+
+Then in `backend/.env`:
+
+```
+OLLAMA_MODEL=gebo-custom
+```
+
+Restart the backend. Chat will use your custom Gebo personality instead of raw Llama.
+
+Edit `models/Gebo.Modelfile` to tune voice, temperature, or base model (`FROM llama3.2:3b` → any Ollama model you have).
+
+---
+
+## Parallel agents + Codex
+
+The **agent runtime** ticks all active registry agents **in parallel** (thread pool). A **Codex lane** runs alongside each cycle:
+
+- Status ping every 30s (version, workdir)
+- Light parallel audit ~every 10 minutes when Codex CLI is installed
+- Heavy Codex build/review tasks remain **approval-gated** via Actions
+
+Check status: `GET /agents/runtime/status` or **Settings → Agent Runtime**.
+
+Verify everything in parallel:
+
+```powershell
+.\scripts\gebo-parallel-verify.ps1
+```
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |

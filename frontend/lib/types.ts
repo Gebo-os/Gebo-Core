@@ -226,6 +226,52 @@ export interface BuildLogEntry {
   next_mission: string;
 }
 
+export interface AgentRuntimeAgent {
+  agent_id: string;
+  name: string;
+  category: string;
+  status: string;
+  message: string;
+  cycles: number;
+  last_tick: string | null;
+  tier: string;
+  registry_status: string;
+}
+
+export interface CodexLaneStatus {
+  available: boolean;
+  enabled: boolean;
+  version: string | null;
+  status: string;
+  message: string;
+  cycles: number;
+  last_tick: string | null;
+  parallel_with_agents: boolean;
+  last_audit_ok?: boolean | null;
+}
+
+export interface AgentRuntimeStatus {
+  running: boolean;
+  started_at: string | null;
+  tick_interval_sec: number;
+  active_agents: number;
+  total_registry: number;
+  healthy: boolean;
+  parallel_workers?: number;
+  cycle_count?: number;
+  codex_lane?: CodexLaneStatus | null;
+  agents: AgentRuntimeAgent[];
+}
+
+export interface NetworkSettings {
+  internet_access: boolean;
+  cors_mode: string;
+  backend_url: string;
+  frontend_url: string;
+  bind_host: string;
+  allowed_origins: string[];
+}
+
 export interface NavItem {
   href: string;
   label: string;

@@ -113,6 +113,10 @@ def init_db() -> None:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             ("consent", "false"),
         )
+        conn.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("internet_access", "true"),
+        )
         conn.commit()
     from app.reflexes import seed_default_reflexes
 
@@ -148,6 +152,18 @@ def set_setting(key: str, value: str) -> None:
 
 def get_consent() -> bool:
     return get_setting("consent", "false").lower() == "true"
+
+
+def set_consent(allowed: bool) -> None:
+    set_setting("consent", "true" if allowed else "false")
+
+
+def get_internet_access() -> bool:
+    return get_setting("internet_access", "true").lower() == "true"
+
+
+def set_internet_access(enabled: bool) -> None:
+    set_setting("internet_access", "true" if enabled else "false")
 
 
 def insert_memory(memory_type: str, content: str, source: str) -> int:

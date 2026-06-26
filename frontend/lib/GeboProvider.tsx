@@ -11,11 +11,14 @@ import {
 } from "react";
 import {
   checkBackendOnline,
+  getAgentRuntimeStatus,
   getCodexStatus,
   getMemories,
+  getNetworkSettings,
   getStatus,
   getWikiStatus,
   setConsent as apiSetConsent,
+  setNetworkSettings as apiSetNetworkSettings,
 } from "@/lib/api";
 import {
   DEFAULT_MISSION,
@@ -24,9 +27,11 @@ import {
 } from "@/lib/constants";
 import { deriveGeboStatus, getActivePresence, buildPresences } from "@/lib/presences";
 import type {
+  AgentRuntimeStatus,
   CodexStatus,
   GeboSystemStatus,
   Memory,
+  NetworkSettings,
   Presence,
   Status,
   WikiStatus,
@@ -38,6 +43,8 @@ interface GeboContextValue {
   memories: Memory[];
   codex: CodexStatus | null;
   wiki: WikiStatus | null;
+  agentRuntime: AgentRuntimeStatus | null;
+  network: NetworkSettings | null;
   geboStatus: GeboSystemStatus;
   activePresence: Presence | null;
   presences: Presence[];
@@ -50,7 +57,9 @@ interface GeboContextValue {
   refresh: () => Promise<void>;
   refreshMemories: () => Promise<void>;
   toggleConsent: () => Promise<void>;
+  toggleInternetAccess: () => Promise<void>;
   consentLoading: boolean;
+  networkLoading: boolean;
   loading: boolean;
 }
 
@@ -62,10 +71,13 @@ export function GeboProvider({ children }: { children: ReactNode }) {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [codex, setCodex] = useState<CodexStatus | null>(null);
   const [wiki, setWiki] = useState<WikiStatus | null>(null);
+  const [agentRuntime, setAgentRuntime] = useState<AgentRuntimeStatus | null>(null);
+  const [network, setNetwork] = useState<NetworkSettings | null>(null);
   const [mission, setMissionState] = useState(DEFAULT_MISSION);
   const [motionEnabled, setMotionEnabledState] = useState(true);
   const [pulse, setPulse] = useState(0);
   const [consentLoading, setConsentLoading] = useState(false);
+  const [networkLoading, setNetworkLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -121,10 +133,22 @@ export function GeboProvider({ children }: { children: ReactNode }) {
         } catch {
           setWiki(null);
         }
+        try {
+          setAgentRuntime(await getAgentRuntimeStatus());
+        } catch {
+          setAgentRuntime(null);
+        }
+        try {
+          setNetwork(await getNetworkSettings());
+        } catch {
+          setNetwork(null);
+        }
       } else {
         setStatus(null);
         setCodex(null);
         setWiki(null);
+        setAgentRuntime(null);
+        setNetwork(null);
       }
     } catch {
       setOnline(false);
@@ -144,6 +168,17 @@ export function GeboProvider({ children }: { children: ReactNode }) {
       setConsentLoading(false);
     }
   }, [status, refresh]);
+
+  const toggleInternetAccess = useCallback(async () => {
+    if (!network) return;
+    setNetworkLoading(true);
+    try {
+      const updated = await apiSetNetworkSettings(!network.internet_access);
+      setNetwork(updated);
+    } finally {
+      setNetworkLoading(false);
+    }
+  }, [network]);
 
   useEffect(() => {
     refresh();
@@ -172,6 +207,8 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     memories,
     codex,
     wiki,
+    agentRuntime,
+    network,
     geboStatus,
     activePresence,
     presences,
@@ -184,7 +221,9 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     refresh,
     refreshMemories,
     toggleConsent,
+    toggleInternetAccess,
     consentLoading,
+    networkLoading,
     loading,
   };
 

@@ -10,6 +10,7 @@ def client(tmp_path, monkeypatch):
     test_db = tmp_path / "test_gebo.db"
     monkeypatch.setattr("app.db.DB_PATH", test_db)
     monkeypatch.setattr("app.db.DB_DIR", tmp_path)
+    monkeypatch.setenv("GEBO_TESTING", "true")
 
     from app import db
 

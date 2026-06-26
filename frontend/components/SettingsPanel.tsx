@@ -15,6 +15,10 @@ export function SettingsPanel() {
     toggleConsent,
     consentLoading,
     geboStatus,
+    agentRuntime,
+    network,
+    toggleInternetAccess,
+    networkLoading,
   } = useGebo();
 
   const pendingTotal =
@@ -80,6 +84,94 @@ export function SettingsPanel() {
           >
             {motionEnabled ? "Turn Off Motion" : "Turn On Motion"}
           </button>
+        </div>
+      </section>
+
+      <section className="settings-section panel">
+        <h2 className="settings-section-title">Network &amp; Localhost</h2>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Internet Access (CORS)</h4>
+            <p>
+              When enabled, the backend accepts requests from any origin — full
+              network access for LAN devices and remote clients. When disabled,
+              only localhost origins are allowed.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`btn ${network?.internet_access ? "btn-danger" : "btn-primary"}`}
+            onClick={toggleInternetAccess}
+            disabled={!online || networkLoading || !network}
+          >
+            {networkLoading
+              ? "Updating…"
+              : network?.internet_access
+                ? "Restrict to Localhost"
+                : "Enable Full Internet Access"}
+          </button>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>CORS Mode</h4>
+            <p>
+              {network?.cors_mode === "open"
+                ? "Open — any origin can reach the API."
+                : "Localhost — restricted to local dev origins."}
+            </p>
+          </div>
+          <span
+            className={`tag ${
+              network?.cors_mode === "open" ? "tag-green" : "tag-warning"
+            }`}
+          >
+            {network?.cors_mode ?? "—"}
+          </span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Living Console (Frontend)</h4>
+            <p>
+              <a
+                href={network?.frontend_url ?? "http://localhost:3000"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="os-widget-link"
+              >
+                {network?.frontend_url ?? "http://localhost:3000"}
+              </a>
+            </p>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Backend API</h4>
+            <p>
+              <a
+                href={network?.backend_url ?? API_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="os-widget-link"
+              >
+                {network?.backend_url ?? API_URL}
+              </a>
+              {" · "}
+              bind <code>{network?.bind_host ?? "0.0.0.0"}</code>
+            </p>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Quick Links</h4>
+            <p style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              <a href="/" className="os-widget-link">Pulse</a>
+              <a href="/chat" className="os-widget-link">Chat</a>
+              <a href="/memory" className="os-widget-link">Memory</a>
+              <a href="/actions" className="os-widget-link">Actions</a>
+              <a href="/reflexes" className="os-widget-link">Reflexes</a>
+              <a href="/evolution" className="os-widget-link">Evolution</a>
+            </p>
+          </div>
         </div>
       </section>
 
@@ -153,6 +245,61 @@ export function SettingsPanel() {
           <span className={`tag ${online ? "tag-green" : "tag-warning"}`}>
             {online ? "Backend ready" : "Offline"}
           </span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Agent Runtime</h4>
+            <p>
+              Internal 24/7 supervisor — {agentRuntime?.active_agents ?? "—"} active
+              workers ticking every {agentRuntime?.tick_interval_sec ?? 30}s.
+              Agents are never shown in UI; this is ops-only heartbeat.
+            </p>
+          </div>
+          <span
+            className={`tag ${
+              agentRuntime?.healthy && agentRuntime?.running
+                ? "tag-green"
+                : online
+                  ? "tag-warning"
+                  : "tag-danger"
+            }`}
+          >
+            {!online
+              ? "Offline"
+              : agentRuntime?.healthy
+                ? "Optimal"
+                : agentRuntime?.running
+                  ? "Degraded"
+                  : "Stopped"}
+          </span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Codex Parallel Lane</h4>
+            <p>
+              Runs alongside agent ticks every {agentRuntime?.tick_interval_sec ?? 30}s.
+              {agentRuntime?.codex_lane
+                ? ` Status: ${agentRuntime.codex_lane.status} — ${agentRuntime.codex_lane.message}`
+                : " Start backend to see lane status."}
+            </p>
+          </div>
+          <span
+            className={`tag ${
+              agentRuntime?.codex_lane?.available ? "tag-green" : "tag-warning"
+            }`}
+          >
+            {agentRuntime?.codex_lane?.available ? "Parallel" : "Codex off"}
+          </span>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Custom Model</h4>
+            <p>
+              Build <code>gebo-custom</code> with{" "}
+              <code>.\scripts\create-gebo-model.ps1</code>, then set{" "}
+              <code>OLLAMA_MODEL=gebo-custom</code> in backend/.env.
+            </p>
+          </div>
         </div>
         <div className="settings-row">
           <div className="settings-row-info">
@@ -263,11 +410,12 @@ export function SettingsPanel() {
       </section>
 
       <section className="settings-section panel">
-        <h2 className="settings-section-title">Local-Only</h2>
+        <h2 className="settings-section-title">Local-First Core</h2>
         <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
-          Gebo Core runs entirely on your machine. No cloud APIs, no external
-          accounts, no internet required after setup. SQLite stores your data at{" "}
+          Gebo Core runs on your machine with SQLite at{" "}
           <code style={{ fontSize: "0.8rem" }}>backend/data/gebo.db</code>.
+          Internet access controls who can reach the API — Ollama and wiki remain
+          local unless you explicitly use external tools via Codex.
         </p>
       </section>
 

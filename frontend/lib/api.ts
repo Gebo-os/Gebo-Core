@@ -1,11 +1,13 @@
 import type {
   Action,
+  AgentRuntimeStatus,
   AutonomyScore,
   ChatResponse,
   CodexStatus,
   EvolutionEvent,
   EvolutionStatus,
   Memory,
+  NetworkSettings,
   Reflex,
   ReflexCreatePayload,
   ReflexEvent,
@@ -64,6 +66,19 @@ export async function setConsent(allowed: boolean): Promise<{ consent: boolean }
   });
 }
 
+export async function getNetworkSettings(): Promise<NetworkSettings> {
+  return request("/settings/network");
+}
+
+export async function setNetworkSettings(
+  internet_access: boolean
+): Promise<NetworkSettings> {
+  return request("/settings/network", {
+    method: "POST",
+    body: JSON.stringify({ internet_access }),
+  });
+}
+
 export async function getMemories(): Promise<Memory[]> {
   return request("/memory");
 }
@@ -108,6 +123,10 @@ export async function getCodexStatus(): Promise<CodexStatus> {
 
 export async function getWikiStatus(): Promise<WikiStatus> {
   return request("/wiki/status");
+}
+
+export async function getAgentRuntimeStatus(): Promise<AgentRuntimeStatus> {
+  return request("/agents/runtime/status");
 }
 
 export async function getReflexes(): Promise<Reflex[]> {

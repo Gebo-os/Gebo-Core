@@ -9,13 +9,14 @@ import { TopCommandBar } from "./TopCommandBar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isPulse = pathname === "/";
 
   return (
-    <div className="shell">
-      <AmbientField calm={pathname !== "/"} />
+    <div className={`shell ${isPulse ? "shell-pulse" : ""}`}>
+      <AmbientField calm={!isPulse} />
       <Sidebar pathname={pathname} />
       <div className="shell-main">
-        <TopCommandBar />
+        {!isPulse && <TopCommandBar />}
         <OfflineBanner />
         <main className="shell-content">
           <div className="shell-content-inner">{children}</div>
