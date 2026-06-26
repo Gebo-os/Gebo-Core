@@ -1,8 +1,10 @@
 import type {
   Action,
   ChatResponse,
+  CodexStatus,
   Memory,
   Status,
+  WikiStatus,
 } from "./types";
 
 export const API_URL =
@@ -89,6 +91,14 @@ export async function rejectAction(id: number): Promise<void> {
 
 export async function runAction(id: number): Promise<unknown> {
   return request(`/actions/${id}/run`, { method: "POST" });
+}
+
+export async function getCodexStatus(): Promise<CodexStatus> {
+  return request("/codex/status");
+}
+
+export async function getWikiStatus(): Promise<WikiStatus> {
+  return request("/wiki/status");
 }
 
 export function getExportUrl(): string {

@@ -69,6 +69,14 @@ Frontend: http://localhost:3000
 
 Browser: **http://localhost:3000**
 
+Or launch as a **desktop app** (Electron window):
+
+```powershell
+.\scripts\start-gebo-desktop.ps1
+```
+
+See `desktop/README.md` for details.
+
 1. Click **Allow Memory Collection** to enable auto-memory capture.
 2. Chat with Gebo.
 3. Add manual memories in the Memory panel.
@@ -153,6 +161,55 @@ This reads repo metadata and README excerpts only. Nothing is pushed or modified
 If `gh` is not logged in, the script falls back to local git repos under Desktop and `.agents`.
 
 See also: `AUDIT.md` for security review.
+
+---
+
+## Offline knowledge wiki (free, local)
+
+Gebo can consult a free offline knowledge base (a Kiwix **ZIM** file, e.g. Wikipedia)
+when a question has no matching memory. It is fully local — no internet is used at
+query time.
+
+1. Install the reader (already in `requirements.txt`):
+
+```powershell
+cd backend
+.\.venv\Scripts\pip install libzim
+```
+
+2. Download a free ZIM from https://download.kiwix.org/zim/ and place it in
+   `backend/data/wiki/`. Good starter options:
+
+| ZIM | Size | Notes |
+|-----|------|-------|
+| `wikipedia_en_100_nopic` | ~300 MB | Tiny sample for testing |
+| `wikipedia_en_simple_all_nopic` | ~1 GB | Simple English Wikipedia, no images |
+| `wikipedia_en_all_nopic` | ~50 GB | Full English Wikipedia, no images |
+
+Gebo auto-detects the first `*.zim` file in `backend/data/wiki/`. Or set an explicit
+path with `WIKI_ZIM_PATH` in `.env`.
+
+3. Restart the backend. Check status at `GET /wiki/status` or the Settings page.
+
+Config (in `backend/.env`):
+
+- `WIKI_ENABLED=true`
+- `WIKI_AUTO=nocontext` — consult only when no memory matches (`always` or `off` also valid)
+- `WIKI_RESULTS=3` — number of articles to reference
+
+The ZIM must have a full-text index (most Wikipedia ZIMs do). Files in
+`backend/data/wiki/` are git-ignored.
+
+---
+
+## Backend tests
+
+```powershell
+cd backend
+.\.venv\Scripts\python -m pytest -q
+```
+
+Tests use an isolated temp SQLite database and mock Ollama — they never touch `data/gebo.db`.
 
 ---
 

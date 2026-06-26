@@ -16,6 +16,7 @@ def utc_now() -> str:
 def init_db() -> None:
     DB_DIR.mkdir(parents=True, exist_ok=True)
     with get_connection() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS settings (
@@ -54,7 +55,6 @@ def init_db() -> None:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             ("consent", "false"),
         )
-        conn.execute("PRAGMA journal_mode=WAL")
         conn.commit()
 
 

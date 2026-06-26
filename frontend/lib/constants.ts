@@ -155,5 +155,6 @@ export const SAFETY_RULES = [
 
 export const BUILD_LOG_STORAGE_KEY = "gebo-build-log";
 export const MISSION_STORAGE_KEY = "gebo-current-mission";
+export const MOTION_STORAGE_KEY = "gebo-motion";
 export const CHAT_DRAFT_KEY = "gebo-chat-draft";
 export const COMMAND_DRAFT_KEY = "gebo-command-draft";

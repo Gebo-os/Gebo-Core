@@ -5,9 +5,11 @@ import Link from "next/link";
 import { EmptyState } from "./EmptyState";
 import { addBuildLog, deleteBuildLog, getBuildLogs } from "@/lib/buildLog";
 import { saveMemory } from "@/lib/api";
+import { useGebo } from "@/lib/GeboProvider";
 import type { BuildLogEntry } from "@/lib/types";
 
 export function BuildLogPanel() {
+  const { triggerPulse } = useGebo();
   const [entries, setEntries] = useState<BuildLogEntry[]>([]);
   const [built, setBuilt] = useState("");
   const [broke, setBroke] = useState("");
@@ -26,18 +28,22 @@ export function BuildLogPanel() {
 
   const handleSubmit = () => {
     if (!built.trim() && !learned.trim()) return;
-    addBuildLog({
-      built: built.trim(),
-      broke: broke.trim(),
-      learned: learned.trim(),
-      next_mission: nextMission.trim(),
-    });
-    setBuilt("");
-    setBroke("");
-    setLearned("");
-    setNextMission("");
-    refresh();
-    setMessage("Log entry saved.");
+    try {
+      addBuildLog({
+        built: built.trim(),
+        broke: broke.trim(),
+        learned: learned.trim(),
+        next_mission: nextMission.trim(),
+      });
+      setBuilt("");
+      setBroke("");
+      setLearned("");
+      setNextMission("");
+      refresh();
+      setMessage("Log entry saved.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not save log.");
+    }
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -54,6 +60,7 @@ export function BuildLogPanel() {
         .filter(Boolean)
         .join("\n");
       await saveMemory("build_log", text);
+      triggerPulse();
       setMessage("Converted to memory.");
     } catch {
       setMessage("Could not save memory. Check backend connection.");

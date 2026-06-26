@@ -9,7 +9,7 @@ import { getExportUrl, saveMemory } from "@/lib/api";
 import type { Memory } from "@/lib/types";
 
 export function MemoryPanel() {
-  const { memories, refreshMemories, online } = useGebo();
+  const { memories, refreshMemories, online, triggerPulse } = useGebo();
   const [memoryType, setMemoryType] = useState("core");
   const [content, setContent] = useState("");
   const [search, setSearch] = useState("");
@@ -50,6 +50,7 @@ export function MemoryPanel() {
       await saveMemory(memoryType, text);
       setContent("");
       await refreshMemories();
+      triggerPulse();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -58,7 +59,7 @@ export function MemoryPanel() {
   };
 
   const handleView = useCallback((m: Memory) => {
-    setExpandedId(m.id);
+    setExpandedId((prev) => (prev === m.id ? null : m.id));
   }, []);
 
   return (

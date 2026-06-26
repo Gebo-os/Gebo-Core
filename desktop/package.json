@@ -1,0 +1,31 @@
+{
+  "name": "gebo-owner-node-desktop",
+  "version": "0.1.0",
+  "description": "Gebo Core Private — Official Owner NODE desktop app",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.gebo.owner-node",
+    "productName": "Gebo Owner NODE",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "win": {
+      "target": ["portable"]
+    },
+    "extraResources": []
+  }
+}

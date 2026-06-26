@@ -11,23 +11,42 @@ import {
 } from "react";
 import {
   checkBackendOnline,
+  getCodexStatus,
   getMemories,
   getStatus,
+  getWikiStatus,
   setConsent as apiSetConsent,
 } from "@/lib/api";
-import { DEFAULT_MISSION, MISSION_STORAGE_KEY } from "@/lib/constants";
+import {
+  DEFAULT_MISSION,
+  MISSION_STORAGE_KEY,
+  MOTION_STORAGE_KEY,
+} from "@/lib/constants";
 import { deriveGeboStatus, getActivePresence, buildPresences } from "@/lib/presences";
-import type { GeboSystemStatus, Memory, Presence, Status } from "@/lib/types";
+import type {
+  CodexStatus,
+  GeboSystemStatus,
+  Memory,
+  Presence,
+  Status,
+  WikiStatus,
+} from "@/lib/types";
 
 interface GeboContextValue {
   online: boolean | null;
   status: Status | null;
   memories: Memory[];
+  codex: CodexStatus | null;
+  wiki: WikiStatus | null;
   geboStatus: GeboSystemStatus;
   activePresence: Presence | null;
   presences: Presence[];
   mission: string;
   setMission: (m: string) => void;
+  motionEnabled: boolean;
+  setMotionEnabled: (v: boolean) => void;
+  pulse: number;
+  triggerPulse: () => void;
   refresh: () => Promise<void>;
   refreshMemories: () => Promise<void>;
   toggleConsent: () => Promise<void>;
@@ -41,7 +60,11 @@ export function GeboProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState<boolean | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [codex, setCodex] = useState<CodexStatus | null>(null);
+  const [wiki, setWiki] = useState<WikiStatus | null>(null);
   const [mission, setMissionState] = useState(DEFAULT_MISSION);
+  const [motionEnabled, setMotionEnabledState] = useState(true);
+  const [pulse, setPulse] = useState(0);
   const [consentLoading, setConsentLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -49,6 +72,9 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(MISSION_STORAGE_KEY);
       if (stored) setMissionState(stored);
+      if (localStorage.getItem(MOTION_STORAGE_KEY) === "off") {
+        setMotionEnabledState(false);
+      }
     }
   }, []);
 
@@ -58,6 +84,15 @@ export function GeboProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(MISSION_STORAGE_KEY, m);
     }
   }, []);
+
+  const setMotionEnabled = useCallback((v: boolean) => {
+    setMotionEnabledState(v);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(MOTION_STORAGE_KEY, v ? "on" : "off");
+    }
+  }, []);
+
+  const triggerPulse = useCallback(() => setPulse((p) => p + 1), []);
 
   const refreshMemories = useCallback(async () => {
     try {
@@ -76,8 +111,20 @@ export function GeboProvider({ children }: { children: ReactNode }) {
         const s = await getStatus();
         setStatus(s);
         await refreshMemories();
+        try {
+          setCodex(await getCodexStatus());
+        } catch {
+          setCodex(null);
+        }
+        try {
+          setWiki(await getWikiStatus());
+        } catch {
+          setWiki(null);
+        }
       } else {
         setStatus(null);
+        setCodex(null);
+        setWiki(null);
       }
     } catch {
       setOnline(false);
@@ -123,11 +170,17 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     online,
     status,
     memories,
+    codex,
+    wiki,
     geboStatus,
     activePresence,
     presences,
     mission,
     setMission,
+    motionEnabled,
+    setMotionEnabled,
+    pulse,
+    triggerPulse,
     refresh,
     refreshMemories,
     toggleConsent,

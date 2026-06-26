@@ -33,13 +33,14 @@ export function MemoryCard({ memory, onView, expanded }: MemoryCardProps) {
       </div>
       <p className="memory-card-content">{preview}</p>
       <div className="memory-card-actions">
-        {onView && !expanded && memory.content.length > 280 && (
+        {onView && memory.content.length > 280 && (
           <button
             type="button"
             className="btn btn-sm btn-ghost"
             onClick={() => onView(memory)}
+            aria-expanded={expanded}
           >
-            View full
+            {expanded ? "Show less" : "View full"}
           </button>
         )}
         <button

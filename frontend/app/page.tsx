@@ -6,6 +6,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusCard } from "@/components/StatusCard";
 import { EmptyState } from "@/components/EmptyState";
+import { LivingPulse } from "@/components/LivingPulse";
 import { useGebo } from "@/lib/GeboProvider";
 
 export default function PulseHome() {
@@ -13,6 +14,8 @@ export default function PulseHome() {
   const {
     online,
     status,
+    codex,
+    wiki,
     geboStatus,
     mission,
     activePresence,
@@ -60,16 +63,27 @@ export default function PulseHome() {
         eyebrow="Home"
         title="Pulse"
         description="Gebo's current state at a glance."
-        action={
-          <div className="pulse-status-badge">
+      />
+
+      <section className="living-hero">
+        <LivingPulse />
+        <div className="living-hero-overlay">
+          <span className={`living-hero-state ${statusClass}`}>
             <span
               className={`pulse-status-indicator ${statusClass}`}
               aria-hidden="true"
             />
             {geboStatus}
-          </div>
-        }
-      />
+          </span>
+          <p className="living-hero-caption">
+            {online
+              ? `${status?.memory_count ?? 0} memories · ${
+                  status?.message_count ?? 0
+                } messages`
+              : "Backend offline — start the FastAPI server"}
+          </p>
+        </div>
+      </section>
 
       <section className="pulse-mission">
         <div className="pulse-mission-label">Current Mission</div>
@@ -107,6 +121,22 @@ export default function PulseHome() {
           label="Memory Collection"
           value={status?.consent ? "On" : "Off"}
           sub={status?.consent ? "Auto-capture active" : "Manual only"}
+        />
+        <StatusCard
+          label="Codex Engine"
+          value={codex?.available ? "Connected" : "Not found"}
+          sub={codex?.available ? codex.version ?? "Ready" : "Install Codex CLI"}
+          accent={codex?.available}
+        />
+        <StatusCard
+          label="Knowledge Wiki"
+          value={wiki?.available ? "Loaded" : wiki?.enabled ? "No ZIM" : "Off"}
+          sub={
+            wiki?.available
+              ? wiki.title ?? "Offline knowledge"
+              : "Add a .zim to data/wiki"
+          }
+          accent={wiki?.available}
         />
       </div>
 

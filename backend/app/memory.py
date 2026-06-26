@@ -81,10 +81,19 @@ def get_relevant_memories(query: str, limit: int = RECALL_LIMIT) -> list[dict]:
     return relevant[:limit]
 
 
+def has_memory_match(query: str) -> bool:
+    """True if any stored memory actually matches the query tokens."""
+    for m in db.get_all_memories():
+        if score_memory(m["content"], query) > 0:
+            return True
+    return False
+
+
 def build_system_prompt(
     recalled: list[dict],
     recent_messages: list[dict],
     user_message: str,
+    wiki_results: list[dict] | None = None,
 ) -> str:
     memory_block = "\n".join(
         f"- [{m['memory_type']}] {_sanitize_for_prompt(m['content'])}"
@@ -95,6 +104,18 @@ def build_system_prompt(
         f"{m['role'].upper()}: {_sanitize_for_prompt(m['content'], 300)}"
         for m in recent_messages[-10:]
     ) or "No prior conversation."
+
+    wiki_block = ""
+    if wiki_results:
+        refs = "\n".join(
+            f"- {r['title']}: {_sanitize_for_prompt(r['snippet'], 700)}"
+            for r in wiki_results
+        )
+        wiki_block = f"""
+
+REFERENCE KNOWLEDGE (offline wiki — use for facts when memory has no answer):
+{refs}
+- Use this only to answer factual/research questions. Prefer Bb's memory and context first."""
 
     return f"""You are Gebo Core, Bb's private intelligence layer.
 
@@ -113,7 +134,7 @@ RECALLED MEMORIES:
 {memory_block}
 
 RECENT CONVERSATION:
-{history_block}
+{history_block}{wiki_block}
 
 CURRENT USER MESSAGE:
 {user_message}

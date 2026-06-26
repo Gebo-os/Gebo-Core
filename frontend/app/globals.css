@@ -80,7 +80,17 @@ select {
 .shell {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-base);
+  background: transparent;
+}
+
+/* Generative ambient backdrop (sits behind all content) */
+.ambient-field {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .shell-main {
@@ -89,6 +99,8 @@ select {
   flex-direction: column;
   min-width: 0;
   margin-left: var(--sidebar-width);
+  position: relative;
+  z-index: 1;
 }
 
 .shell-content {
@@ -292,6 +304,16 @@ select {
   border-radius: 4px;
   padding: 2px 6px;
   font-family: var(--font);
+}
+
+.offline-banner {
+  margin: 0 var(--space-lg) var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: var(--danger);
+  background: var(--danger-muted);
+  border: 1px solid #5a2020;
+  border-radius: var(--radius-sm);
 }
 
 /* Bottom nav (mobile) */
@@ -677,6 +699,81 @@ select {
 .pulse-status-indicator.awake { background: var(--green); }
 .pulse-status-indicator.resting { background: var(--text-tertiary); }
 .pulse-status-indicator.setup { background: var(--warning); }
+
+/* Living generative hero */
+.living-hero {
+  position: relative;
+  height: 240px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: var(--space-lg);
+  background:
+    radial-gradient(120% 140% at 50% 0%, #0c140d 0%, var(--bg-base) 60%),
+    var(--bg-base);
+}
+
+.living-pulse-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.living-hero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  pointer-events: none;
+  text-align: center;
+}
+
+.living-hero-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  padding: 0.4rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.55);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(6px);
+}
+
+.living-hero-state .pulse-status-indicator {
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.living-hero-state.awake { color: var(--green); }
+.living-hero-state.resting { color: var(--text-secondary); }
+.living-hero-state.setup { color: var(--warning); }
+
+.living-hero-caption {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background: rgba(5, 5, 5, 0.45);
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+}
+
+@media (max-width: 768px) {
+  .living-hero {
+    height: 180px;
+  }
+  .living-hero-state {
+    font-size: 1.2rem;
+  }
+}
 
 .pulse-mission {
   background: var(--bg-panel);

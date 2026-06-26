@@ -9,9 +9,11 @@ import {
   rejectAction,
   runAction,
 } from "@/lib/api";
+import { useGebo } from "@/lib/GeboProvider";
 import type { Action } from "@/lib/types";
 
 export function AutonomyPanel() {
+  const { triggerPulse } = useGebo();
   const [actions, setActions] = useState<Action[]>([]);
   const [selected, setSelected] = useState<Action | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -34,7 +36,16 @@ export function AutonomyPanel() {
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
+
+  useEffect(() => {
+    const hasActive = actions.some(
+      (a) => a.status === "running" || a.status === "approved"
+    );
+    if (!hasActive) return;
+    const interval = setInterval(refresh, 4000);
+    return () => clearInterval(interval);
+  }, [actions, refresh]);
 
   const handleApprove = async (id: number) => {
     setLoadingId(id);
@@ -42,6 +53,7 @@ export function AutonomyPanel() {
     try {
       await approveAction(id);
       await refresh();
+      triggerPulse();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Approve failed");
     } finally {
@@ -77,6 +89,7 @@ export function AutonomyPanel() {
 
   const proposed = actions.filter((a) => a.status === "proposed");
   const approved = actions.filter((a) => a.status === "approved");
+  const running = actions.filter((a) => a.status === "running");
   const completed = actions.filter((a) => a.status === "completed");
   const failed = actions.filter((a) => a.status === "failed");
 
@@ -127,6 +140,13 @@ export function AutonomyPanel() {
               loadingId={loadingId}
             />
             <ActionSection
+              title={`Running (${running.length})`}
+              actions={running}
+              selected={selected}
+              onSelect={setSelected}
+              loadingId={loadingId}
+            />
+            <ActionSection
               title={`Completed (${completed.length})`}
               actions={completed}
               selected={selected}
@@ -152,6 +172,12 @@ export function AutonomyPanel() {
                 <p style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginTop: "0.5rem" }}>
                   {new Date(selected.created_at).toLocaleString()}
                 </p>
+                {selected.status === "running" && (
+                  <p style={{ fontSize: "0.85rem", color: "var(--green-dim)", marginTop: "0.5rem" }}>
+                    <span className="loading-pulse" aria-hidden="true" /> Codex is
+                    working… results will appear here when finished.
+                  </p>
+                )}
                 <div className="action-card-buttons" style={{ marginTop: "1rem" }}>
                   {selected.status === "proposed" && (
                     <>
@@ -194,16 +220,14 @@ export function AutonomyPanel() {
                     </>
                   )}
                 </div>
-                {selected.payload_json && (
+                {selected.payload_json && selected.payload_json !== "{}" && (
                   <pre className="action-result">
-                    Payload:{" "}
-                    {JSON.stringify(JSON.parse(selected.payload_json), null, 2)}
+                    Payload: {formatJson(selected.payload_json)}
                   </pre>
                 )}
                 {selected.result_json && (
                   <pre className="action-result">
-                    Result:{" "}
-                    {JSON.stringify(JSON.parse(selected.result_json), null, 2)}
+                    Result: {formatJson(selected.result_json)}
                   </pre>
                 )}
               </>
@@ -217,6 +241,14 @@ export function AutonomyPanel() {
       )}
     </>
   );
+}
+
+function formatJson(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
 }
 
 function ActionSection({

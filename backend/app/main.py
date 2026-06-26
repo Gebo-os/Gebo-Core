@@ -3,12 +3,13 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-from app import autonomy, db, memory, ollama_client
+from app import autonomy, codex_client, db, memory, ollama_client, wiki_client
 from app.schemas import (
     ActionItem,
     ActionPropose,
@@ -111,7 +112,21 @@ async def chat(body: ChatRequest):
 
     recalled = memory.get_relevant_memories(user_message)
     recent = db.get_recent_messages(20)
-    system_prompt = memory.build_system_prompt(recalled, recent, user_message)
+
+    wiki_results: list[dict] = []
+    if wiki_client.is_enabled() and wiki_client.is_available():
+        consult = wiki_client.WIKI_AUTO == "always" or (
+            wiki_client.WIKI_AUTO == "nocontext"
+            and not memory.has_memory_match(user_message)
+        )
+        if consult:
+            wiki_results = await run_in_threadpool(
+                wiki_client.search, user_message
+            )
+
+    system_prompt = memory.build_system_prompt(
+        recalled, recent, user_message, wiki_results
+    )
 
     try:
         reply = await ollama_client.chat(system_prompt, user_message)
@@ -144,6 +159,7 @@ async def chat(body: ChatRequest):
         reply=reply,
         recalled_memories=[MemoryItem(**m) for m in recalled],
         proposed_actions=proposed_actions,
+        wiki_sources=[r["title"] for r in wiki_results],
     )
 
 
@@ -200,6 +216,23 @@ def reject_action(action_id: int):
     return {"id": action_id, "status": "rejected"}
 
 
+@app.get("/codex/status")
+def codex_status():
+    return codex_client.status()
+
+
+@app.get("/wiki/status")
+def wiki_status():
+    return wiki_client.status()
+
+
+@app.get("/wiki/search")
+def wiki_search(q: str, limit: int = 3):
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    return {"query": q, "results": wiki_client.search(q, limit)}
+
+
 @app.post("/actions/{action_id}/run")
 def run_action_endpoint(action_id: int):
     action = db.get_action(action_id)
@@ -212,6 +245,9 @@ def run_action_endpoint(action_id: int):
         )
     try:
         result = autonomy.run_action(action_id)
-        return {"id": action_id, "status": "completed", "result": result}
+        if result.get("status") == "running":
+            return {"id": action_id, "status": "running", "result": result}
+        status = "completed" if result.get("ok", True) else "failed"
+        return {"id": action_id, "status": status, "result": result}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

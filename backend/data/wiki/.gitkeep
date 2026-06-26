@@ -1,0 +1,3 @@
+# Place a ZIM file here (e.g. wikipedia_en_simple_all_nopic.zim).
+# Download free ZIM files from https://download.kiwix.org/zim/
+# Gebo auto-detects the first *.zim file in this folder.

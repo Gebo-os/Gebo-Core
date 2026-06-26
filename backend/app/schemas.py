@@ -58,6 +58,7 @@ class ChatResponse(BaseModel):
     reply: str
     recalled_memories: list[MemoryItem]
     proposed_actions: list[ProposedAction] = Field(default_factory=list)
+    wiki_sources: list[str] = Field(default_factory=list)
 
 
 class ActionPropose(BaseModel):
@@ -76,3 +77,16 @@ class ActionItem(BaseModel):
     payload_json: str
     status: str
     result_json: Optional[str] = None
+
+
+class AgentItem(BaseModel):
+    id: str
+    name: str
+    category: str
+    mark: str
+    purpose: str
+    responsibilities: list[str]
+    outputs: list[str]
+    activation_trigger: str
+    status: str
+    tier: str

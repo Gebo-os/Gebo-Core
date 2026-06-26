@@ -10,13 +10,23 @@ import type { ChatMessage, ChatMode } from "@/lib/types";
 const PENDING_KEY = "gebo-chat-pending";
 
 export function ChatPanel() {
-  const { status, refresh, refreshMemories } = useGebo();
+  const { status, refresh, refreshMemories, triggerPulse, online } = useGebo();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>("ask");
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [loading]);
 
   useEffect(() => {
     const pending = sessionStorage.getItem(PENDING_KEY);
@@ -44,7 +54,7 @@ export function ChatPanel() {
 
   const handleSend = useCallback(async () => {
     const raw = input.trim();
-    if (!raw || loading) return;
+    if (!raw || loading || online === false) return;
 
     const text = getPrefixedMessage(raw);
     setInput("");
@@ -69,6 +79,7 @@ export function ChatPanel() {
           content: res.reply,
           recalled: res.recalled_memories,
           proposedActionIds: res.proposed_actions.map((a) => a.id),
+          wikiSources: res.wiki_sources,
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -90,12 +101,13 @@ export function ChatPanel() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, getPrefixedMessage, refresh]);
+  }, [input, loading, online, getPrefixedMessage, refresh]);
 
   const handleSaveAsMemory = async (content: string) => {
     try {
       await saveMemory("core", content);
       await refreshMemories();
+      triggerPulse();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     }
@@ -169,6 +181,17 @@ export function ChatPanel() {
               </div>
             )}
 
+            {msg.wikiSources && msg.wikiSources.length > 0 && (
+              <div className="chat-recalled">
+                <div className="chat-recalled-label">Referenced wiki</div>
+                {msg.wikiSources.map((title) => (
+                  <div key={title} className="chat-recalled-item">
+                    <span className="tag">wiki</span> {title}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {msg.role === "assistant" && (
               <div className="chat-message-actions">
                 <button
@@ -193,7 +216,20 @@ export function ChatPanel() {
               <span className="chat-message-role">Gebo</span>
             </div>
             <div className="chat-message-body">
-              <span className="loading-pulse" aria-hidden="true" /> Thinking…
+              <span className="loading-pulse" aria-hidden="true" /> Thinking
+              {elapsed > 0 ? ` · ${elapsed}s` : "…"}
+              {elapsed >= 6 && (
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: "0.35rem",
+                    fontSize: "0.78rem",
+                    color: "var(--text-tertiary)",
+                  }}
+                >
+                  Local model is generating — this can take a few seconds.
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -223,9 +259,9 @@ export function ChatPanel() {
           type="button"
           className="btn btn-primary"
           onClick={handleSend}
-          disabled={loading || !input.trim()}
+          disabled={loading || !input.trim() || online === false}
         >
-          Send
+          {online === false ? "Offline" : "Send"}
         </button>
       </div>
     </div>

@@ -31,6 +31,7 @@ export interface ChatMessage {
   content: string;
   recalled?: RecalledMemory[];
   proposedActionIds?: number[];
+  wikiSources?: string[];
   timestamp: string;
 }
 
@@ -46,6 +47,7 @@ export interface ChatResponse {
   reply: string;
   recalled_memories: RecalledMemory[];
   proposed_actions: ProposedActionSummary[];
+  wiki_sources?: string[];
 }
 
 export interface Action {
@@ -55,8 +57,33 @@ export interface Action {
   title: string;
   description: string;
   payload_json: string;
-  status: "proposed" | "approved" | "rejected" | "completed" | "failed";
+  status:
+    | "proposed"
+    | "approved"
+    | "rejected"
+    | "running"
+    | "completed"
+    | "failed";
   result_json: string | null;
+}
+
+export interface CodexStatus {
+  available: boolean;
+  enabled: boolean;
+  version: string | null;
+  workdir: string;
+  timeout_sec: number;
+}
+
+export interface WikiStatus {
+  enabled: boolean;
+  available: boolean;
+  auto_mode: string;
+  zim_path: string | null;
+  error: string | null;
+  title: string | null;
+  article_count: number | null;
+  has_fulltext_index: boolean | null;
 }
 
 export type PresenceStatus = "Awake" | "Quiet" | "Resting" | "Needs Memory";

@@ -102,10 +102,21 @@ function StatusTag({ status }: { status: string }) {
   const cls =
     status === "proposed"
       ? "tag-warning"
-      : status === "approved"
+      : status === "approved" || status === "running"
         ? "tag-green"
         : status === "failed" || status === "rejected"
           ? "tag-danger"
           : "";
-  return <span className={`tag ${cls}`}>{status}</span>;
+  return (
+    <span className={`tag ${cls}`}>
+      {status === "running" && (
+        <span
+          className="loading-pulse"
+          style={{ marginRight: 6 }}
+          aria-hidden="true"
+        />
+      )}
+      {status}
+    </span>
+  );
 }
