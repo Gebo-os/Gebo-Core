@@ -114,6 +114,25 @@ export function SettingsPanel() {
         </div>
         <div className="settings-row">
           <div className="settings-row-info">
+            <h4>Gebo Lattice Prompting</h4>
+            <p>
+              Expert style #01 — Identity → Memory → Architecture → Output.
+              See <code>prompts/01-gebo-lattice-prompting.md</code> and{" "}
+              <code>memory/core/00-default-gebo-build-prompt.md</code>.
+            </p>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>Gebo Ecosystem Master</h4>
+            <p>
+              Official master prompt — Presence, Memory, Owner Node, native tools,
+              build priority. See <code>GEBO-ECOSYSTEM-MASTER.md</code> in repo root.
+            </p>
+          </div>
+        </div>
+        <div className="settings-row">
+          <div className="settings-row-info">
             <h4>Gebo Gym</h4>
             <p>
               Official training loop: Learn → Grow → Act → Verify → Repeat.

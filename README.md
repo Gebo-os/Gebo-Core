@@ -1,10 +1,12 @@
 # Gebo Core Private
 
-Private full-stack local AI memory app for Bb.
+Private full-stack local AI memory app for Bb — **Owner NODE V0**.
+
+**Official master law:** [`GEBO-ECOSYSTEM-MASTER.md`](GEBO-ECOSYSTEM-MASTER.md)
 
 **Stack:** Next.js + FastAPI + SQLite + Ollama (llama3.2:3b)
 
-Memory owns identity. The model generates responses. Actions require approval.
+Presence is identity. Memory is continuity. Owner Node is authority. The model generates responses. Actions require approval.
 
 ---
 
@@ -274,10 +276,15 @@ Tests use an isolated temp SQLite database and mock Ollama — they never touch 
 
 ```
 gebo-core-private/
-  backend/          FastAPI + SQLite + Ollama + Autonomy
-  frontend/         Next.js dashboard
-  scripts/          gebo-gym.ps1 — official training algorithm
-  GEBO-GYM.md       Gebo Gym spec (Learn → Grow → Act → Verify → Repeat)
+  backend/                    FastAPI + SQLite + Ollama + Autonomy
+  frontend/                   Next.js Living Console
+  scripts/                    gebo-gym.ps1 — training ritual
+  GEBO-ECOSYSTEM-MASTER.md    Official master prompt (canonical law)
+  prompts/01-gebo-lattice-prompting.md   Expert prompting style #01
+  memory/core/00-default-gebo-build-prompt.md   Core memory #00
+  GEBO-GYM.md                 Training algorithm
+  GEBO-REFLEX-ENGINE.md       Memory-aware reflex automation
+  GEBO-EVOLUTION-LOOP.md      Behavioral self-improvement
   docker-compose.yml
   README.md
 ```
@@ -287,6 +294,16 @@ gebo-core-private/
 ## Gebo identity
 
 Gebo Core is Bb's private intelligence layer — calm, direct, strategic, memory-aware, approval-based.
+
+Full ecosystem law: [`GEBO-ECOSYSTEM-MASTER.md`](GEBO-ECOSYSTEM-MASTER.md)
+
+| Invention | Spec |
+|-----------|------|
+| Gebo Gym | [`GEBO-GYM.md`](GEBO-GYM.md) |
+| Reflex Engine | [`GEBO-REFLEX-ENGINE.md`](GEBO-REFLEX-ENGINE.md) |
+| Evolution Loop | [`GEBO-EVOLUTION-LOOP.md`](GEBO-EVOLUTION-LOOP.md) |
+| Lattice Prompting #01 | [`prompts/01-gebo-lattice-prompting.md`](prompts/01-gebo-lattice-prompting.md) |
+| Core memory #00 | [`memory/core/00-default-gebo-build-prompt.md`](memory/core/00-default-gebo-build-prompt.md) |
 
 Gebo helps build: Gebo OS, Owner Node, Memory Continuity API, Presence Architecture, Dream, Mya, LockIn, Slatt Tool, Sleep, Future Presences.
 
