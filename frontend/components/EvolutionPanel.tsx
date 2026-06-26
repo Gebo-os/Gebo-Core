@@ -152,7 +152,53 @@ export function EvolutionPanel() {
   };
 
   const proposed = upgrades.filter((u) => u.status === "proposed");
-  const decided = upgrades.filter((u) => u.status !== "proposed");
+  const approved = upgrades.filter((u) => u.status === "approved");
+  const rejected = upgrades.filter((u) => u.status === "rejected");
+  const reflexCandidates = proposed.filter((u) => u.upgrade_type === "reflex");
+  const toolCandidates = proposed.filter((u) => u.upgrade_type === "tool");
+  const agentCandidates = proposed.filter((u) => u.upgrade_type === "agent");
+  const learned = events.filter((e) => e.score > 0 || e.status === "scored");
+
+  const renderUpgradeCards = (items: UpgradeSuggestion[], empty: string) =>
+    items.length === 0 ? (
+      <p className="evolution-empty-hint">{empty}</p>
+    ) : (
+      <div className="reflex-grid">
+        {items.map((upgrade) => (
+          <article key={upgrade.id} className="reflex-card panel">
+            <div className="reflex-card-header">
+              <h3 className="reflex-card-title">{upgrade.title}</h3>
+              <span className="tag tag-green">{upgrade.upgrade_type}</span>
+            </div>
+            <p className="reflex-card-desc">{upgrade.description}</p>
+            <p className="evolution-reason">{upgrade.reason}</p>
+            {upgrade.status === "proposed" && (
+              <div className="reflex-card-buttons">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary"
+                  disabled={busyId === upgrade.id || !online}
+                  onClick={() => handleApprove(upgrade.id)}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary"
+                  disabled={busyId === upgrade.id || !online}
+                  onClick={() => handleReject(upgrade.id)}
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+            {upgrade.status !== "proposed" && (
+              <span className="tag">{upgrade.status}</span>
+            )}
+          </article>
+        ))}
+      </div>
+    );
 
   if (loading) {
     return <p className="text-muted">Loading evolution loop…</p>;
@@ -273,44 +319,67 @@ export function EvolutionPanel() {
       </section>
 
       <section className="evolution-section">
-        <h2 className="reflex-section-title">Upgrade Suggestions</h2>
-        {proposed.length === 0 ? (
+        <h2 className="reflex-section-title">What Gebo Learned</h2>
+        {learned.length === 0 ? (
           <EmptyState
-            title="No pending upgrades"
-            description="Complete and score actions, or suggest an upgrade manually."
+            title="No scored lessons yet"
+            description="Score a completed action to teach Gebo what worked."
           />
         ) : (
-          <div className="reflex-grid">
-            {proposed.map((upgrade) => (
-              <article key={upgrade.id} className="reflex-card panel">
-                <div className="reflex-card-header">
-                  <h3 className="reflex-card-title">{upgrade.title}</h3>
-                  <span className="tag tag-green">{upgrade.upgrade_type}</span>
+          <div className="evolution-timeline">
+            {learned.slice(0, 8).map((event) => (
+              <div key={event.id} className="evolution-timeline-item panel">
+                <div className="reflex-event-header">
+                  <span className="tag tag-green">
+                    {event.score}/10 · {event.source_type}
+                  </span>
+                  <span className="reflex-event-time">
+                    {new Date(event.created_at).toLocaleString()}
+                  </span>
                 </div>
-                <p className="reflex-card-desc">{upgrade.description}</p>
-                <p className="evolution-reason">{upgrade.reason}</p>
-                <div className="reflex-card-buttons">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary"
-                    disabled={busyId === upgrade.id || !online}
-                    onClick={() => handleApprove(upgrade.id)}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-secondary"
-                    disabled={busyId === upgrade.id || !online}
-                    onClick={() => handleReject(upgrade.id)}
-                  >
-                    Reject
-                  </button>
-                </div>
-              </article>
+                <p className="reflex-event-input">{event.lesson}</p>
+              </div>
             ))}
           </div>
         )}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">New Reflex Candidates</h2>
+        {renderUpgradeCards(
+          reflexCandidates,
+          "No reflex upgrades proposed yet."
+        )}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">New Tool Candidates</h2>
+        {renderUpgradeCards(toolCandidates, "No tool upgrades proposed yet.")}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">New Agent Candidates</h2>
+        {renderUpgradeCards(agentCandidates, "No agent upgrades proposed yet.")}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">Other Upgrade Suggestions</h2>
+        {renderUpgradeCards(
+          proposed.filter(
+            (u) => !["reflex", "tool", "agent"].includes(u.upgrade_type)
+          ),
+          "No other pending upgrades."
+        )}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">Approved Evolutions</h2>
+        {renderUpgradeCards(approved, "No approved upgrades yet.")}
+      </section>
+
+      <section className="evolution-section">
+        <h2 className="reflex-section-title">Rejected Evolutions</h2>
+        {renderUpgradeCards(rejected, "No rejected upgrades.")}
       </section>
 
       <section className="evolution-section">
@@ -415,18 +484,13 @@ export function EvolutionPanel() {
         )}
       </section>
 
-      {(scores.length > 0 || decided.length > 0) && (
+      {scores.length > 0 && (
         <section className="evolution-section">
-          <h2 className="reflex-section-title">Recent Scores &amp; Decisions</h2>
-          {scores.slice(0, 5).map((s) => (
+          <h2 className="reflex-section-title">Recent Outcomes</h2>
+          {scores.slice(0, 8).map((s) => (
             <div key={s.id} className="evolution-score-row panel">
               Action #{s.action_id ?? "—"} · Total {s.total_score}/10
-              {s.notes ? ` · ${s.notes.slice(0, 80)}` : ""}
-            </div>
-          ))}
-          {decided.slice(0, 5).map((u) => (
-            <div key={u.id} className="evolution-score-row panel">
-              {u.title} · {u.status}
+              {s.notes ? ` · ${s.notes.slice(0, 120)}` : ""}
             </div>
           ))}
         </section>

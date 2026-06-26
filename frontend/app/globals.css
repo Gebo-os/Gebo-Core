@@ -1674,3 +1674,9 @@ select {
   color: var(--text-secondary);
   margin-bottom: var(--space-sm);
 }
+
+.evolution-empty-hint {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
