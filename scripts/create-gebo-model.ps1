@@ -18,7 +18,14 @@ Write-Host "2. Creating gebo-custom from Modelfile..." -ForegroundColor Cyan
 ollama create gebo-custom -f $Modelfile
 
 Write-Host "3. Quick test..." -ForegroundColor Cyan
-ollama run gebo-custom "Who are you? One sentence." --verbose 2>$null | Select-Object -First 5
+$testBody = '{"model":"gebo-custom","messages":[{"role":"user","content":"Who are you? One sentence."}],"stream":false}'
+try {
+    $resp = Invoke-RestMethod -Uri "http://localhost:11434/api/chat" -Method POST -Body $testBody -ContentType "application/json" -TimeoutSec 120
+    $reply = $resp.message.content
+    if ($reply) { Write-Host $reply.Substring(0, [Math]::Min(200, $reply.Length)) }
+} catch {
+    Write-Host "Test skipped (Ollama API): $_" -ForegroundColor Yellow
+}
 
 Write-Host ""
 Write-Host "Done. Add to backend/.env:" -ForegroundColor Green

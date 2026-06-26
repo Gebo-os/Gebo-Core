@@ -11,9 +11,9 @@ $pytestJob = Start-Job -ScriptBlock {
 }
 
 $codexJob = Start-Job -ScriptBlock {
-    $exe = (Get-Command codex -ErrorAction SilentlyContinue)?.Source
-    if (-not $exe) { return "Codex: not installed" }
-    $v = & $exe --version 2>&1 | Select-Object -First 1
+    $cmd = Get-Command codex -ErrorAction SilentlyContinue
+    if (-not $cmd) { return "Codex: not installed" }
+    $v = & $cmd.Source --version 2>&1 | Select-Object -First 1
     return "Codex: $v"
 }
 

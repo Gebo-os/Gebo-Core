@@ -79,14 +79,18 @@ def _env_cors_origins() -> list[str]:
 
 
 def _network_settings_payload() -> dict:
-    internet = db.get_internet_access() or os.getenv("CORS_ORIGINS", "").strip() == "*"
+    internet = db.get_internet_access()
     env_origins = _env_cors_origins()
-    if internet or "*" in env_origins:
+    if internet:
         cors_mode = "open"
         allowed = ["*"]
     else:
         cors_mode = "localhost"
-        allowed = env_origins
+        allowed = (
+            env_origins
+            if env_origins != ["*"]
+            else DEFAULT_LOCALHOST_ORIGINS
+        )
     backend_url = os.getenv(
         "GEBO_BACKEND_URL",
         f"http://127.0.0.1:{BACKEND_PORT}",

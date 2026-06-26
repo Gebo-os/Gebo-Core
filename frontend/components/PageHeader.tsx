@@ -12,7 +12,7 @@ export function PageHeader({
   action,
 }: PageHeaderProps) {
   return (
-    <header className="page-header">
+    <header className="page-header os-page-header">
       <div
         style={{
           display: "flex",
