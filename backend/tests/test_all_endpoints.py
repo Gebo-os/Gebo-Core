@@ -21,6 +21,14 @@ def test_all_get_endpoints(client):
         ("/evolution/scores", lambda d: isinstance(d, list)),
         ("/evolution/upgrades", lambda d: isinstance(d, list)),
         ("/settings/network", lambda d: "internet_access" in d),
+        ("/integrate/bootstrap", lambda d: "status" in d and "capabilities" in d),
+        ("/integrations/status", lambda d: "items" in d and d["total"] >= 1),
+        ("/cli/status", lambda d: "items" in d),
+        ("/knowledge/status", lambda d: "catalog_oss_count" in d),
+        ("/system/private", lambda d: d.get("system") == "Gebo OS Private"),
+        ("/system/production-readiness", lambda d: "readiness_score" in d),
+        ("/system/v1-readiness", lambda d: d.get("official_stack") == "supabase_vercel_v1"),
+        ("/system/modules", lambda d: d.get("count") == 8),
     ]
     for path, validator in checks:
         r = client.get(path)
@@ -212,3 +220,21 @@ def test_validation_errors(client, method, path, body, params):
     else:
         r = client.post(path, json=body)
     assert r.status_code in (400, 422)
+
+
+def test_learning_cycle_endpoint(client):
+    r = client.post("/learning/cycle")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert "collection" in data
+    assert "knowledge" in data
+
+
+def test_system_build_endpoint(client):
+    r = client.post("/system/build")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert "manifest" in data
+    assert data["manifest"]["version"] >= 1

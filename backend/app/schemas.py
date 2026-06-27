@@ -252,3 +252,17 @@ class AgentRuntimeStatusResponse(BaseModel):
     cycle_count: int = 0
     codex_lane: Optional[CodexLaneStatus] = None
     agents: list[AgentRuntimeAgentItem]
+
+
+class IntegrateBootstrapResponse(BaseModel):
+    """Single-call payload for Living Console and future consumer apps."""
+
+    version: str
+    app: str
+    health: HealthResponse
+    status: StatusResponse
+    network: NetworkSettingsResponse
+    codex: dict[str, Any]
+    wiki: dict[str, Any]
+    agent_runtime: AgentRuntimeStatusResponse
+    capabilities: dict[str, Any]

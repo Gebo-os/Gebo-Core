@@ -272,6 +272,76 @@ export interface NetworkSettings {
   allowed_origins: string[];
 }
 
+/** Single-call bootstrap for Living Console and consumer apps. */
+export interface GeboBootstrap {
+  version: string;
+  app: string;
+  health: { ok: boolean; agent_runtime_healthy: boolean };
+  status: Status;
+  network: NetworkSettings;
+  codex: CodexStatus;
+  wiki: WikiStatus;
+  agent_runtime: AgentRuntimeStatus;
+  capabilities: Record<string, boolean | number>;
+}
+
+export interface IntegrationItem {
+  id: string;
+  name: string;
+  category: string;
+  mode: "learnable" | "connector";
+  provider: string;
+  configured: boolean;
+  status: string;
+  docs?: string;
+  env?: string[];
+}
+
+export interface IntegrationsStatus {
+  total: number;
+  learnable: number;
+  connectors: number;
+  ready: number;
+  items: IntegrationItem[];
+}
+
+export interface CliItem {
+  id: string;
+  name: string;
+  role: string;
+  available: boolean;
+  path: string | null;
+  version: string | null;
+  install_hint: string;
+}
+
+export interface CliStatus {
+  total: number;
+  available: number;
+  items: CliItem[];
+}
+
+export interface KnowledgeStatus {
+  catalog_path: string;
+  private_docs_dir: string;
+  private_doc_count: number;
+  private_doc_files: string[];
+  catalog_oss_count: number;
+  catalog_docs_count: number;
+  catalog_models_count: number;
+  knowledge_memory_count: number;
+  web_knowledge_memory_count: number;
+  internet_access: boolean;
+  web_fetch_ready: boolean;
+}
+
+export interface LearningCycleResult {
+  ok: boolean;
+  lesson?: string;
+  collection?: Record<string, unknown>;
+  knowledge?: KnowledgeStatus;
+}
+
 export interface NavItem {
   href: string;
   label: string;

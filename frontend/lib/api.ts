@@ -8,6 +8,11 @@ import type {
   EvolutionStatus,
   Memory,
   NetworkSettings,
+  GeboBootstrap,
+  CliStatus,
+  IntegrationsStatus,
+  KnowledgeStatus,
+  LearningCycleResult,
   Reflex,
   ReflexCreatePayload,
   ReflexEvent,
@@ -18,6 +23,17 @@ import type {
   WikiStatus,
 } from "./types";
 
+export function getApiUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== "undefined") {
+    return `http://${window.location.hostname}:8000`;
+  }
+  return "http://localhost:8000";
+}
+
+/** @deprecated Prefer getApiUrl() for runtime resolution on LAN clients. */
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -36,7 +52,7 @@ async function request<T>(
   options?: RequestInit & { timeoutMs?: number }
 ): Promise<T> {
   const { timeoutMs = 30000, ...fetchOptions } = options ?? {};
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${getApiUrl()}${path}`, {
     ...fetchOptions,
     signal: AbortSignal.timeout(timeoutMs),
     headers: {
@@ -53,6 +69,11 @@ async function request<T>(
 
 export async function getHealth(): Promise<{ ok: boolean; app?: string }> {
   return request("/health");
+}
+
+/** One-call system snapshot — preferred for app startup and consumer integrations. */
+export async function getBootstrap(): Promise<GeboBootstrap> {
+  return request("/integrate/bootstrap");
 }
 
 export async function getStatus(): Promise<Status> {
@@ -189,7 +210,7 @@ export async function rejectUpgrade(id: number): Promise<unknown> {
 }
 
 export function getExportUrl(): string {
-  return `${API_URL}/memory/export`;
+  return `${getApiUrl()}/memory/export`;
 }
 
 export async function checkBackendOnline(): Promise<boolean> {
@@ -199,4 +220,29 @@ export async function checkBackendOnline(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function getIntegrationsStatus(): Promise<IntegrationsStatus> {
+  return request("/integrations/status");
+}
+
+export async function getCliStatus(): Promise<CliStatus> {
+  return request("/cli/status");
+}
+
+export async function getKnowledgeStatus(): Promise<KnowledgeStatus> {
+  return request("/knowledge/status");
+}
+
+export async function runLearningCycle(): Promise<LearningCycleResult> {
+  return request("/learning/cycle", { method: "POST", timeoutMs: 300000 });
+}
+
+export interface WebKnowledgeCollectResult {
+  github?: { ingested?: number };
+  official_docs?: { ingested?: number };
+}
+
+export async function runWebKnowledgeCollect(): Promise<WebKnowledgeCollectResult> {
+  return request("/knowledge/web-collect", { method: "POST", timeoutMs: 300000 });
 }

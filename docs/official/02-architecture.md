@@ -1,0 +1,34 @@
+# Gebo OS Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Living Console (Next.js) — GeboOsShell, all routes          │
+│ geboClient.bootstrap() → single startup call                │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────┐
+│ Gebo Core API (FastAPI)                                     │
+│ /chat /memory /actions /integrate/bootstrap                 │
+│ /integrations/status /cli/status /knowledge/* /learning/*  │
+└───────┬─────────────────────────────┬───────────────────────┘
+        │                             │
+┌───────▼────────┐           ┌────────▼────────┐
+│ Ollama         │           │ Agent Runtime    │
+│ gebo-custom    │           │ Parallel + Codex │
+└────────────────┘           └─────────────────┘
+        │
+┌───────▼────────────────────────────────────────┐
+│ SQLite — memories, messages, actions, evolution  │
+└────────────────────────────────────────────────┘
+```
+
+## Subsystems
+
+| Module | Role |
+|--------|------|
+| `integrations_registry` | Google + OSS catalog; learnable vs connector |
+| `knowledge_collector` | Catalog, private docs → memory |
+| `learning_pipeline` | Orchestrates collect + evolution |
+| `cli_registry` | Detects local CLIs |
+| `agent_runtime` | 24/7 parallel agents + Codex lane |
+| `autonomy` | Approval-gated tools including Codex |

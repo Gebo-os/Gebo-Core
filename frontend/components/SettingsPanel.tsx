@@ -1,8 +1,10 @@
 "use client";
 
-import { API_URL, getExportUrl } from "@/lib/api";
+import { getApiUrl, getExportUrl } from "@/lib/api";
+import { IntegrationsLearnPanel } from "@/components/IntegrationsLearnPanel";
 import { SAFETY_RULES } from "@/lib/constants";
 import { useGebo } from "@/lib/GeboProvider";
+import { isRecaptchaConfigured } from "@/lib/recaptcha";
 
 export function SettingsPanel() {
   const {
@@ -148,12 +150,12 @@ export function SettingsPanel() {
             <h4>Backend API</h4>
             <p>
               <a
-                href={network?.backend_url ?? API_URL}
+                href={network?.backend_url ?? getApiUrl()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="os-widget-link"
               >
-                {network?.backend_url ?? API_URL}
+                {network?.backend_url ?? getApiUrl()}
               </a>
               {" · "}
               bind <code>{network?.bind_host ?? "0.0.0.0"}</code>
@@ -201,7 +203,7 @@ export function SettingsPanel() {
         <div className="settings-row">
           <div className="settings-row-info">
             <h4>Backend URL</h4>
-            <p>{API_URL}</p>
+            <p>{network?.backend_url ?? getApiUrl()}</p>
           </div>
         </div>
         <div className="settings-row">
@@ -410,6 +412,25 @@ export function SettingsPanel() {
       </section>
 
       <section className="settings-section panel">
+        <h2 className="settings-section-title">Production Security</h2>
+        <div className="settings-row">
+          <div className="settings-row-info">
+            <h4>reCAPTCHA Enterprise</h4>
+            <p>
+              {isRecaptchaConfigured()
+                ? "Site key configured — ready for login/register when Firebase Auth UI ships."
+                : "Not configured. Set NEXT_PUBLIC_RECAPTCHA_SITE_KEY for production bot protection."}
+            </p>
+          </div>
+          <span
+            className={`tag ${isRecaptchaConfigured() ? "tag-green" : "tag-warning"}`}
+          >
+            {isRecaptchaConfigured() ? "Configured" : "Stub"}
+          </span>
+        </div>
+      </section>
+
+      <section className="settings-section panel">
         <h2 className="settings-section-title">Local-First Core</h2>
         <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", marginBottom: "1rem" }}>
           Gebo Core runs on your machine with SQLite at{" "}
@@ -427,6 +448,8 @@ export function SettingsPanel() {
           ))}
         </ul>
       </section>
+
+      <IntegrationsLearnPanel />
 
       <section className="settings-section">
         <div className="settings-warning">

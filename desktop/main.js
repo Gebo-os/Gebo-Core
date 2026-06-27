@@ -14,6 +14,7 @@ const ROOT = path.resolve(__dirname, "..");
 const BACKEND_DIR = path.join(ROOT, "backend");
 const FRONTEND_DIR = path.join(ROOT, "frontend");
 const PYTHON = path.join(BACKEND_DIR, ".venv", "Scripts", "python.exe");
+const UVICORN = path.join(BACKEND_DIR, ".venv", "Scripts", "uvicorn.exe");
 const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
 
 /** @type {import('child_process').ChildProcess[]} */
@@ -62,8 +63,45 @@ function spawnHidden(cmd, args, cwd) {
   return child;
 }
 
+async function bootstrapReady() {
+  return ping(`${BACKEND_URL}/integrate/bootstrap`);
+}
+
+function killPort8000Windows() {
+  const { execSync } = require("child_process");
+  try {
+    const out = execSync("netstat -ano | findstr :8000 | findstr LISTENING", {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    const pids = new Set();
+    for (const line of out.split(/\r?\n/)) {
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[parts.length - 1];
+      if (pid && /^\d+$/.test(pid)) pids.add(pid);
+    }
+    for (const pid of pids) {
+      try {
+        execSync(`taskkill /PID ${pid} /F /T`, { stdio: "ignore", windowsHide: true });
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* no listeners */
+  }
+}
+
 async function ensureBackend() {
-  if (await ping(`${BACKEND_URL}/health`)) return;
+  if (await bootstrapReady()) return;
+
+  // Stale backend answers /health but not /integrate/bootstrap — replace it.
+  if (await ping(`${BACKEND_URL}/health`)) {
+    if (process.platform === "win32") killPort8000Windows();
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  if (await bootstrapReady()) return;
 
   if (!fs.existsSync(PYTHON)) {
     throw new Error(
@@ -71,8 +109,13 @@ async function ensureBackend() {
     );
   }
 
-  spawnHidden(PYTHON, ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"], BACKEND_DIR);
-  await waitFor(`${BACKEND_URL}/health`, "Backend");
+  const backendExe = fs.existsSync(UVICORN) ? UVICORN : PYTHON;
+  const backendArgs = fs.existsSync(UVICORN)
+    ? ["app.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"]
+    : ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"];
+
+  spawnHidden(backendExe, backendArgs, BACKEND_DIR);
+  await waitFor(`${BACKEND_URL}/integrate/bootstrap`, "Backend bootstrap", 90);
 }
 
 async function ensureFrontend() {

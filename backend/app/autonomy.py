@@ -41,6 +41,16 @@ TOOL_REGISTRY = {
         "safe": False,
         "background": True,
     },
+    "knowledge_collect": {
+        "description": "Ingest catalog, private docs, and web knowledge into Gebo memory.",
+        "safe": True,
+        "background": True,
+    },
+    "learning_cycle": {
+        "description": "Run full learning cycle: collect knowledge and record evolution lesson.",
+        "safe": True,
+        "background": True,
+    },
 }
 
 
@@ -264,6 +274,16 @@ def execute_tool(action_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         if result.get("ok") and result.get("result"):
             db.insert_memory("build_log", f"[codex build]\n{result['result']}"[:12000], "codex")
         return result
+
+    if action_type == "knowledge_collect":
+        from app import knowledge_collector
+
+        return {"ok": True, "result": knowledge_collector.run_full_collection()}
+
+    if action_type == "learning_cycle":
+        from app import learning_pipeline
+
+        return learning_pipeline.run_learning_cycle()
 
     raise ValueError(f"Tool not implemented: {action_type}")
 

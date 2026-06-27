@@ -20,6 +20,12 @@ backend/data/gebo.db-shm
 # Offline wiki ZIM files (large, downloaded separately)
 backend/data/wiki/*.zim
 
+# Private knowledge cache and owner docs (local only)
+backend/data/knowledge/cache/
+backend/data/private-docs/*
+!backend/data/private-docs/README.md
+backend/data/knowledge/gebo-system-manifest.json
+
 # OS / IDE
 .DS_Store
 Thumbs.db
@@ -30,5 +36,7 @@ Thumbs.db
 # Build
 dist/
 build/
+desktop/dist/
+desktop/node_modules/
 *.egg-info/
 frontend/tsconfig.tsbuildinfo

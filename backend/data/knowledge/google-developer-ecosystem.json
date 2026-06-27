@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "title": "Google Hard-Core Developer Ecosystem",
+  "layers": [
+    {
+      "id": "ai_ml",
+      "name": "Core AI & Machine Learning",
+      "items": [
+        {"id": "google_ai_studio", "learnable": true, "docs": "https://ai.google.dev/aistudio"},
+        {"id": "vertex_ai", "connector": true, "docs": "https://cloud.google.com/vertex-ai/docs"},
+        {"id": "tensorflow", "learnable": true, "docs": "https://www.tensorflow.org/guide"},
+        {"id": "jax", "learnable": true, "docs": "https://jax.readthedocs.io/en/latest/"},
+        {"id": "mediapipe", "learnable": true, "docs": "https://developers.google.com/mediapipe"},
+        {"id": "gemma", "learnable": true, "docs": "https://ai.google.dev/gemma/docs"}
+      ]
+    },
+    {
+      "id": "frameworks",
+      "name": "Frameworks, Languages & Build",
+      "items": [
+        {"id": "flutter", "learnable": true, "docs": "https://docs.flutter.dev/"},
+        {"id": "dart", "learnable": true, "docs": "https://dart.dev/guides"},
+        {"id": "golang", "learnable": true, "docs": "https://go.dev/doc/"},
+        {"id": "bazel", "learnable": true, "docs": "https://bazel.build/start"},
+        {"id": "protobuf", "learnable": true, "docs": "https://protobuf.dev/overview/"},
+        {"id": "flatbuffers", "learnable": true, "docs": "https://google.github.io/flatbuffers/"},
+        {"id": "kotlin_multiplatform", "learnable": true, "docs": "https://kotlinlang.org/docs/multiplatform.html"}
+      ]
+    },
+    {
+      "id": "ides",
+      "name": "IDEs & Debugging",
+      "items": [
+        {"id": "android_studio", "learnable": true, "docs": "https://developer.android.com/studio/intro"},
+        {"id": "chrome_devtools", "learnable": true, "docs": "https://developer.chrome.com/docs/devtools/"},
+        {"id": "cloud_code", "learnable": true, "docs": "https://cloud.google.com/code/docs"},
+        {"id": "cloud_shell", "learnable": true, "docs": "https://cloud.google.com/shell/docs"},
+        {"id": "gerrit", "learnable": true, "docs": "https://www.gerritcodereview.com/documentation/"}
+      ]
+    },
+    {
+      "id": "firebase",
+      "name": "Firebase / BaaS",
+      "items": [
+        {"id": "firestore", "connector": true, "docs": "https://firebase.google.com/docs/firestore"},
+        {"id": "firebase_rtdb", "connector": true, "docs": "https://firebase.google.com/docs/database"},
+        {"id": "firebase_sql", "learnable": true, "docs": "https://firebase.google.com/docs/data-connect"},
+        {"id": "firebase_hosting", "learnable": true, "docs": "https://firebase.google.com/docs/hosting"},
+        {"id": "crashlytics", "connector": true, "docs": "https://firebase.google.com/docs/crashlytics"},
+        {"id": "fcm", "connector": true, "docs": "https://firebase.google.com/docs/cloud-messaging"}
+      ]
+    },
+    {
+      "id": "gcp",
+      "name": "Google Cloud Infrastructure",
+      "items": [
+        {"id": "gke", "connector": true, "docs": "https://cloud.google.com/kubernetes-engine/docs"},
+        {"id": "compute_engine", "connector": true, "docs": "https://cloud.google.com/compute/docs"},
+        {"id": "cloud_run", "connector": true, "docs": "https://cloud.google.com/run/docs"},
+        {"id": "cloud_functions", "connector": true, "docs": "https://cloud.google.com/functions/docs"},
+        {"id": "bigquery", "connector": true, "docs": "https://cloud.google.com/bigquery/docs"},
+        {"id": "artifact_registry", "learnable": true, "docs": "https://cloud.google.com/artifact-registry/docs"}
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "name": "Diagnostics & Security",
+      "items": [
+        {"id": "lighthouse", "learnable": true, "docs": "https://developer.chrome.com/docs/lighthouse/overview/"},
+        {"id": "search_console", "connector": true, "docs": "https://developers.google.com/search/docs"},
+        {"id": "recaptcha_enterprise", "connector": true, "docs": "https://cloud.google.com/recaptcha-enterprise/docs"}
+      ]
+    }
+  ]
+}

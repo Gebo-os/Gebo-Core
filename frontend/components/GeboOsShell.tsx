@@ -253,7 +253,8 @@ function OsTopBar({
   onToggleTheme: () => void;
   time: string;
 }) {
-  const { online } = useGebo();
+  const { online, status } = useGebo();
+  const modelShort = status?.model?.split(":")[0] ?? null;
 
   return (
     <header className="os-pulse-header">
@@ -280,6 +281,19 @@ function OsTopBar({
           );
         })}
       </nav>
+      <div
+        className="os-pulse-header-status"
+        title={status?.model ? `Local Ollama model: ${status.model}` : "Model unavailable"}
+        role="status"
+      >
+        <span
+          className={`os-pulse-live ${online && modelShort ? "online" : ""}`}
+          aria-hidden="true"
+        />
+        <span className="os-model-badge">
+          {modelShort ?? (online ? "…" : "Offline")}
+        </span>
+      </div>
       <div className="os-pulse-header-actions">
         <OsNavLink href="/chat" className="os-header-icon" aria-label="Search">
           ⌕

@@ -20,6 +20,8 @@ CODEX_ENABLED = os.getenv("CODEX_ENABLED", "true").lower() == "true"
 CODEX_WORKDIR = os.getenv("CODEX_WORKDIR", str(PROJECT_ROOT))
 CODEX_TIMEOUT = int(os.getenv("CODEX_TIMEOUT", "900"))  # seconds
 
+_SUBPROCESS_TEXT = {"text": True, "encoding": "utf-8", "errors": "replace"}
+
 _VERSION_CACHE: dict[str, object] = {}
 
 
@@ -47,9 +49,9 @@ def get_version() -> str | None:
         result = subprocess.run(
             [exe, "--version"],
             capture_output=True,
-            text=True,
             timeout=30,
             check=False,
+            **_SUBPROCESS_TEXT,
         )
         version = (result.stdout or result.stderr or "").strip().splitlines()
         v = version[0] if version else None
@@ -131,10 +133,10 @@ def run_task(prompt: str, mode: str = "review") -> dict:
             cmd,
             cwd=CODEX_WORKDIR,
             capture_output=True,
-            text=True,
             timeout=CODEX_TIMEOUT,
             check=False,
             env={**os.environ, "TERM": "xterm-256color"},
+            **_SUBPROCESS_TEXT,
         )
     except subprocess.TimeoutExpired:
         return {

@@ -12,15 +12,31 @@ load_dotenv()
 
 from app import (
     agent_runtime,
+    auth_middleware,
     autonomy,
+    cli_registry,
     codex_client,
     db,
     evolution,
+    gebo_system,
+    integrate,
+    integrations_registry,
+    knowledge_collector,
+    learning_pipeline,
     memory,
+    model_armor,
     ollama_client,
+    production_security,
     reflexes,
+    release_stack,
+    secrets_loader,
     wiki_client,
 )
+from app.modules import all_module_statuses
+from app.modules import billing_usage, identity_core, security_command
+from app.v1_clients import health as v1_health
+from app.v1_clients import upstash_client
+from app.network_utils import get_lan_ip
 from app.schemas import (
     ActionItem,
     ActionPropose,
@@ -33,6 +49,7 @@ from app.schemas import (
     EvolutionEventItem,
     EvolutionStatusResponse,
     HealthResponse,
+    IntegrateBootstrapResponse,
     MemoryCreate,
     MemoryItem,
     NetworkSettingsRequest,
@@ -50,7 +67,12 @@ from app.schemas import (
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    secrets_loader.load_secrets_from_gcp()
     db.init_db()
+    try:
+        v1_health.warmup()
+    except Exception:
+        pass
     agent_runtime.start()
     yield
     agent_runtime.stop()
@@ -91,14 +113,31 @@ def _network_settings_payload() -> dict:
             if env_origins != ["*"]
             else DEFAULT_LOCALHOST_ORIGINS
         )
-    backend_url = os.getenv(
-        "GEBO_BACKEND_URL",
-        f"http://127.0.0.1:{BACKEND_PORT}",
+    env_backend = os.getenv("GEBO_BACKEND_URL")
+    env_frontend = os.getenv("GEBO_FRONTEND_URL")
+    bind_all = BIND_HOST in ("0.0.0.0", "::")
+
+    def _is_localhost_url(url: str | None) -> bool:
+        if not url:
+            return True
+        lowered = url.lower()
+        return "127.0.0.1" in lowered or "localhost" in lowered
+
+    use_lan_urls = (bind_all or internet) and (
+        (not env_backend and not env_frontend)
+        or (_is_localhost_url(env_backend) and _is_localhost_url(env_frontend))
     )
-    frontend_url = os.getenv(
-        "GEBO_FRONTEND_URL",
-        f"http://localhost:{FRONTEND_PORT}",
-    )
+    if use_lan_urls:
+        lan_ip = get_lan_ip()
+        if lan_ip:
+            backend_url = f"http://{lan_ip}:{BACKEND_PORT}"
+            frontend_url = f"http://{lan_ip}:{FRONTEND_PORT}"
+        else:
+            backend_url = f"http://127.0.0.1:{BACKEND_PORT}"
+            frontend_url = f"http://localhost:{FRONTEND_PORT}"
+    else:
+        backend_url = env_backend or f"http://127.0.0.1:{BACKEND_PORT}"
+        frontend_url = env_frontend or f"http://localhost:{FRONTEND_PORT}"
     return {
         "internet_access": internet,
         "cors_mode": cors_mode,
@@ -116,6 +155,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def firebase_auth_gate(request: Request, call_next):
+    return await auth_middleware.auth_middleware(request, call_next)
+
+
+@app.middleware("http")
+async def upstash_rate_limit_gate(request: Request, call_next):
+    """Lightweight rate limit on protected routes when Upstash is configured."""
+    if not upstash_client.is_configured():
+        return await call_next(request)
+    if not auth_middleware.is_protected_route(request.url.path, request.method):
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
+    identifier = f"{client_ip}:{request.url.path}"
+    result = upstash_client.check_rate_limit(identifier, limit=120, window_sec=60)
+    if not result.get("allowed", True):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded"},
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -163,6 +226,14 @@ def status():
         approved_action_count=db.count_actions_by_status("approved"),
         completed_action_count=db.count_actions_by_status("completed"),
     )
+
+
+@app.get("/integrate/bootstrap", response_model=IntegrateBootstrapResponse)
+def integrate_bootstrap():
+    """One-call system snapshot for the Living Console and consumer apps."""
+    payload = integrate.build_bootstrap()
+    payload["network"] = _network_settings_payload()
+    return IntegrateBootstrapResponse(**payload)
 
 
 @app.post("/settings/consent")
@@ -220,6 +291,14 @@ async def chat(body: ChatRequest):
     if not user_message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
+    input_screen = await model_armor.screen_input(user_message)
+    if input_screen.blocked:
+        raise HTTPException(
+            status_code=400,
+            detail=input_screen.reason or "Input blocked by Model Armor",
+        )
+    user_message = input_screen.text
+
     db.insert_message("user", user_message)
     consent = db.get_consent()
 
@@ -245,9 +324,21 @@ async def chat(body: ChatRequest):
     )
 
     try:
-        reply = await ollama_client.chat(system_prompt, user_message)
+        if os.getenv("GEBO_USE_AI_GATEWAY", "false").lower() in ("1", "true", "yes"):
+            from app.modules import ai_gateway
+
+            gateway_result = await ai_gateway.route_chat(system_prompt, user_message)
+            reply = gateway_result.get("reply") or ""
+        else:
+            reply = await ollama_client.chat(system_prompt, user_message)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+
+    output_screen = await model_armor.screen_output(reply)
+    if output_screen.blocked:
+        reply = "Response withheld by safety screening."
+    else:
+        reply = output_screen.text
 
     db.insert_message("assistant", reply)
 
@@ -541,6 +632,89 @@ def reject_upgrade_endpoint(upgrade_id: int):
         return evolution.reject_upgrade(upgrade_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/integrations/status")
+def integrations_status():
+    return integrations_registry.status()
+
+
+@app.get("/cli/status")
+def cli_status():
+    return cli_registry.status()
+
+
+@app.get("/knowledge/status")
+def knowledge_status():
+    return knowledge_collector.status()
+
+
+@app.post("/knowledge/collect")
+def knowledge_collect():
+    return knowledge_collector.run_full_collection()
+
+
+@app.post("/knowledge/web-collect")
+def knowledge_web_collect():
+    if not db.get_internet_access():
+        raise HTTPException(
+            status_code=403,
+            detail="Enable internet access in Settings to fetch web knowledge",
+        )
+    return knowledge_collector.run_web_collection()
+
+
+@app.post("/learning/cycle")
+def learning_cycle():
+    return learning_pipeline.run_learning_cycle()
+
+
+@app.get("/system/private")
+def system_private():
+    """Backend-only Gebo system snapshot — integrations, knowledge, manifest."""
+    return gebo_system.private_status()
+
+
+@app.post("/system/build")
+def system_build():
+    """Private full build: collect docs, cache locally, ingest memory, update manifest."""
+    return gebo_system.build_system()
+
+
+@app.get("/system/production-readiness")
+def system_production_readiness():
+    """Production release checklist — auth, persistence, encryption, web defense."""
+    return production_security.readiness()
+
+
+@app.get("/system/v1-readiness")
+def system_v1_readiness():
+    """Official V1 release checklist — Supabase + Vercel stack."""
+    return release_stack.v1_readiness()
+
+
+@app.get("/system/modules")
+def system_modules():
+    """Native Gebo V1 backend module statuses."""
+    return {"modules": all_module_statuses(), "count": len(all_module_statuses())}
+
+
+@app.post("/v1/security/verify-turnstile")
+async def v1_verify_turnstile(request: Request):
+    body = await request.json()
+    token = (body or {}).get("token", "")
+    remote_ip = request.client.host if request.client else None
+    return security_command.verify_turnstile(token, remote_ip)
+
+
+@app.get("/v1/billing/plans")
+def v1_billing_plans():
+    return billing_usage.list_plans()
+
+
+@app.get("/v1/identity/owner-status")
+def v1_identity_owner_status():
+    return identity_core.get_owner_status()
 
 
 @app.post("/actions/{action_id}/run")

@@ -256,6 +256,24 @@ def count_memories() -> int:
         return row["c"]
 
 
+def count_memories_by_type_prefix(prefix: str) -> int:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS c FROM memories WHERE memory_type LIKE ?",
+            (f"{prefix}%",),
+        ).fetchone()
+        return row["c"]
+
+
+def memory_exists(content: str) -> bool:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT id FROM memories WHERE content = ? LIMIT 1",
+            (content,),
+        ).fetchone()
+        return row is not None
+
+
 def insert_message(role: str, content: str) -> int:
     with get_connection() as conn:
         cur = conn.execute(

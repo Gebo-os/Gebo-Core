@@ -11,12 +11,8 @@ import {
 } from "react";
 import {
   checkBackendOnline,
-  getAgentRuntimeStatus,
-  getCodexStatus,
+  getBootstrap,
   getMemories,
-  getNetworkSettings,
-  getStatus,
-  getWikiStatus,
   setConsent as apiSetConsent,
   setNetworkSettings as apiSetNetworkSettings,
 } from "@/lib/api";
@@ -119,36 +115,39 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     try {
       const isOnline = await checkBackendOnline();
       setOnline(isOnline);
-      if (isOnline) {
-        const s = await getStatus();
-        setStatus(s);
-        await refreshMemories();
-        try {
-          setCodex(await getCodexStatus());
-        } catch {
-          setCodex(null);
-        }
-        try {
-          setWiki(await getWikiStatus());
-        } catch {
-          setWiki(null);
-        }
-        try {
-          setAgentRuntime(await getAgentRuntimeStatus());
-        } catch {
-          setAgentRuntime(null);
-        }
-        try {
-          setNetwork(await getNetworkSettings());
-        } catch {
-          setNetwork(null);
-        }
-      } else {
+      if (!isOnline) {
         setStatus(null);
+        setMemories([]);
         setCodex(null);
         setWiki(null);
         setAgentRuntime(null);
         setNetwork(null);
+        return;
+      }
+      try {
+        const [boot, mems] = await Promise.all([
+          getBootstrap(),
+          getMemories().catch(() => []),
+        ]);
+        setStatus(boot.status);
+        setMemories(mems);
+        setCodex(boot.codex);
+        setWiki(boot.wiki);
+        setAgentRuntime(boot.agent_runtime);
+        setNetwork(boot.network);
+      } catch {
+        // Health OK but bootstrap failed — stale backend; stay online, fetch piecemeal
+        const [st, mems, net] = await Promise.all([
+          getStatus().catch(() => null),
+          getMemories().catch(() => []),
+          getNetworkSettings().catch(() => null),
+        ]);
+        setStatus(st);
+        setMemories(mems);
+        setNetwork(net);
+        setCodex(null);
+        setWiki(null);
+        setAgentRuntime(null);
       }
     } catch {
       setOnline(false);
@@ -156,7 +155,7 @@ export function GeboProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [refreshMemories]);
+  }, []);
 
   const toggleConsent = useCallback(async () => {
     if (!status) return;

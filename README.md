@@ -69,7 +69,17 @@ Frontend: http://localhost:3000
 
 ## 5. Open app
 
-Browser: **http://localhost:3000**
+**One command (WiFi + LAN — recommended):**
+
+```powershell
+.\scripts\start-gebo.ps1
+```
+
+Browser: **http://localhost:3000** (this PC) or **http://YOUR_LAN_IP:3000** (phone/tablet).
+
+Other modes: `.\scripts\start-gebo.ps1 -Mode localhost` or `-Mode desktop`.
+
+**Consumer / white-label integration:** see [`CONSUMER-APP.md`](CONSUMER-APP.md).
 
 Or launch as a **desktop app** (Electron window):
 
