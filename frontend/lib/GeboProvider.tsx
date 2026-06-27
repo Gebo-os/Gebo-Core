@@ -52,8 +52,8 @@ interface GeboContextValue {
   setMotionEnabled: (v: boolean) => void;
   pulse: number;
   triggerPulse: () => void;
-  refresh: () => Promise<void>;
-  refreshMemories: () => Promise<void>;
+  refresh: (signal?: AbortSignal) => Promise<void>;
+  refreshMemories: (signal?: AbortSignal) => Promise<void>;
   toggleConsent: () => Promise<void>;
   toggleInternetAccess: () => Promise<void>;
   consentLoading: boolean;
@@ -104,18 +104,21 @@ export function GeboProvider({ children }: { children: ReactNode }) {
 
   const triggerPulse = useCallback(() => setPulse((p) => p + 1), []);
 
-  const refreshMemories = useCallback(async () => {
+  const refreshMemories = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await getMemories();
+      const data = await getMemories(signal);
+      if (signal?.aborted) return;
       setMemories(data);
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setMemories([]);
     }
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
-      const isOnline = await checkBackendOnline();
+      const isOnline = await checkBackendOnline(signal);
+      if (signal?.aborted) return;
       setOnline(isOnline);
       if (!isOnline) {
         setStatus(null);
@@ -128,22 +131,24 @@ export function GeboProvider({ children }: { children: ReactNode }) {
       }
       try {
         const [boot, mems] = await Promise.all([
-          getBootstrap(),
-          getMemories().catch(() => []),
+          getBootstrap(signal),
+          getMemories(signal).catch(() => []),
         ]);
+        if (signal?.aborted) return;
         setStatus(boot.status);
         setMemories(mems);
         setCodex(boot.codex);
         setWiki(boot.wiki);
         setAgentRuntime(boot.agent_runtime);
         setNetwork(boot.network);
-      } catch {
-        // Health OK but bootstrap failed — stale backend; stay online, fetch piecemeal
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
         const [st, mems, net] = await Promise.all([
-          getStatus().catch(() => null),
-          getMemories().catch(() => []),
-          getNetworkSettings().catch(() => null),
+          getStatus(signal).catch(() => null),
+          getMemories(signal).catch(() => []),
+          getNetworkSettings(signal).catch(() => null),
         ]);
+        if (signal?.aborted) return;
         setStatus(st);
         setMemories(mems);
         setNetwork(net);
@@ -151,11 +156,12 @@ export function GeboProvider({ children }: { children: ReactNode }) {
         setWiki(null);
         setAgentRuntime(null);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setOnline(false);
       setStatus(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
@@ -182,9 +188,20 @@ export function GeboProvider({ children }: { children: ReactNode }) {
   }, [network]);
 
   useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 10000);
-    return () => clearInterval(interval);
+    let pollController: AbortController | null = null;
+
+    const doRefresh = () => {
+      pollController?.abort();
+      pollController = new AbortController();
+      void refresh(pollController.signal);
+    };
+
+    doRefresh();
+    const interval = setInterval(doRefresh, 10000);
+    return () => {
+      clearInterval(interval);
+      pollController?.abort();
+    };
   }, [refresh]);
 
   const presences = useMemo(

@@ -19,7 +19,15 @@ def client(tmp_path, monkeypatch):
     async def fake_chat(_system_prompt: str, _user_message: str) -> str:
         return "Test reply from Gebo."
 
+    async def fake_chat_stream(_system_prompt: str, _user_message: str):
+        yield "Test reply from Gebo."
+
+    async def fake_runtime_info():
+        return {"loaded": False, "model": "test-model"}
+
     monkeypatch.setattr("app.main.ollama_client.chat", fake_chat)
+    monkeypatch.setattr("app.main.ollama_client.chat_stream", fake_chat_stream)
+    monkeypatch.setattr("app.main.ollama_client.get_runtime_info", fake_runtime_info)
 
     from app.main import app
 

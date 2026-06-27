@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import asynccontextmanager
 
@@ -5,7 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import Response
 
 load_dotenv()
@@ -215,7 +216,8 @@ def health():
 
 
 @app.get("/status", response_model=StatusResponse)
-def status():
+async def status():
+    ollama_runtime = await ollama_client.get_runtime_info()
     return StatusResponse(
         app="Gebo Core Private",
         model=ollama_client.get_model(),
@@ -225,6 +227,7 @@ def status():
         proposed_action_count=db.count_actions_by_status("proposed"),
         approved_action_count=db.count_actions_by_status("approved"),
         completed_action_count=db.count_actions_by_status("completed"),
+        ollama_runtime=ollama_runtime,
     )
 
 
@@ -287,6 +290,60 @@ def export_memory():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest):
+    user_message, consent, recalled, wiki_results, system_prompt = await _prepare_chat(
+        body
+    )
+    try:
+        reply = await _generate_chat_reply(system_prompt, user_message)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    return await _finalize_chat(
+        user_message, consent, recalled, wiki_results, reply
+    )
+
+
+@app.post("/chat/stream")
+async def chat_stream_endpoint(body: ChatRequest):
+    user_message, consent, recalled, wiki_results, system_prompt = await _prepare_chat(
+        body
+    )
+
+    async def event_generator():
+        parts: list[str] = []
+        try:
+            use_gateway = os.getenv("GEBO_USE_AI_GATEWAY", "false").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            if use_gateway:
+                reply = await _generate_chat_reply(system_prompt, user_message)
+                parts.append(reply)
+                yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"
+            else:
+                async for token in ollama_client.chat_stream(
+                    system_prompt, user_message
+                ):
+                    parts.append(token)
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+        except RuntimeError as exc:
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+            return
+
+        reply = "".join(parts).strip()
+        response = await _finalize_chat(
+            user_message, consent, recalled, wiki_results, reply
+        )
+        yield f"data: {json.dumps({'type': 'done', **response.model_dump()})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+async def _prepare_chat(body: ChatRequest):
     user_message = body.message.strip()
     if not user_message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -305,14 +362,13 @@ async def chat(body: ChatRequest):
     memory.auto_capture(user_message)
     autonomy.handle_remember_direct(user_message, consent)
 
-    recalled = memory.get_relevant_memories(user_message)
+    recalled, has_match = memory.recall_for_chat(user_message)
     recent = db.get_recent_messages(20)
 
     wiki_results: list[dict] = []
     if wiki_client.is_enabled() and wiki_client.is_available():
         consult = wiki_client.WIKI_AUTO == "always" or (
-            wiki_client.WIKI_AUTO == "nocontext"
-            and not memory.has_memory_match(user_message)
+            wiki_client.WIKI_AUTO == "nocontext" and not has_match
         )
         if consult:
             wiki_results = await run_in_threadpool(
@@ -322,18 +378,25 @@ async def chat(body: ChatRequest):
     system_prompt = memory.build_system_prompt(
         recalled, recent, user_message, wiki_results
     )
+    return user_message, consent, recalled, wiki_results, system_prompt
 
-    try:
-        if os.getenv("GEBO_USE_AI_GATEWAY", "false").lower() in ("1", "true", "yes"):
-            from app.modules import ai_gateway
 
-            gateway_result = await ai_gateway.route_chat(system_prompt, user_message)
-            reply = gateway_result.get("reply") or ""
-        else:
-            reply = await ollama_client.chat(system_prompt, user_message)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+async def _generate_chat_reply(system_prompt: str, user_message: str) -> str:
+    if os.getenv("GEBO_USE_AI_GATEWAY", "false").lower() in ("1", "true", "yes"):
+        from app.modules import ai_gateway
 
+        gateway_result = await ai_gateway.route_chat(system_prompt, user_message)
+        return gateway_result.get("reply") or ""
+    return await ollama_client.chat(system_prompt, user_message)
+
+
+async def _finalize_chat(
+    user_message: str,
+    consent: bool,
+    recalled: list[dict],
+    wiki_results: list[dict],
+    reply: str,
+) -> ChatResponse:
     output_screen = await model_armor.screen_output(reply)
     if output_screen.blocked:
         reply = "Response withheld by safety screening."

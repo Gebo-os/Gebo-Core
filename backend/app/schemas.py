@@ -24,6 +24,7 @@ class StatusResponse(BaseModel):
     proposed_action_count: int
     approved_action_count: int
     completed_action_count: int
+    ollama_runtime: dict[str, Any] | None = None
 
 
 class ConsentRequest(BaseModel):

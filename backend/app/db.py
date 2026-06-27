@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -117,10 +118,82 @@ def init_db() -> None:
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
             ("internet_access", "true"),
         )
+        _ensure_memories_fts(conn)
         conn.commit()
     from app.reflexes import seed_default_reflexes
 
     seed_default_reflexes()
+
+
+def _ensure_memories_fts(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+            memory_id UNINDEXED,
+            content,
+            tokenize='porter unicode61'
+        )
+        """
+    )
+    indexed = conn.execute("SELECT COUNT(*) AS c FROM memories_fts").fetchone()["c"]
+    total = conn.execute("SELECT COUNT(*) AS c FROM memories").fetchone()["c"]
+    if indexed < total:
+        conn.execute("DELETE FROM memories_fts")
+        conn.execute(
+            """
+            INSERT INTO memories_fts(memory_id, content)
+            SELECT id, content FROM memories
+            """
+        )
+
+
+def _fts_match_expr(query: str) -> str | None:
+    tokens = re.findall(r"[a-z0-9]+", query.lower())
+    tokens = [t for t in tokens if len(t) > 2][:10]
+    if not tokens:
+        return None
+    return " OR ".join(f'"{t}"' for t in tokens)
+
+
+def _sync_memory_fts(conn: sqlite3.Connection, memory_id: int, content: str) -> None:
+    conn.execute("DELETE FROM memories_fts WHERE memory_id = ?", (memory_id,))
+    conn.execute(
+        "INSERT INTO memories_fts(memory_id, content) VALUES (?, ?)",
+        (memory_id, content),
+    )
+
+
+def search_memories_fts(query: str, limit: int = 50) -> list[dict]:
+    match_expr = _fts_match_expr(query)
+    if not match_expr:
+        return []
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT m.id, m.created_at, m.memory_type, m.content, m.source
+            FROM memories_fts
+            JOIN memories m ON m.id = memories_fts.memory_id
+            WHERE memories_fts MATCH ?
+            ORDER BY bm25(memories_fts)
+            LIMIT ?
+            """,
+            (match_expr, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_recent_memories(limit: int = 8) -> list[dict]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, created_at, memory_type, content, source
+            FROM memories
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return list(reversed([dict(r) for r in rows]))
 
 
 @contextmanager
@@ -175,8 +248,10 @@ def insert_memory(memory_type: str, content: str, source: str) -> int:
             """,
             (utc_now(), memory_type, content, source),
         )
+        memory_id = cur.lastrowid
+        _sync_memory_fts(conn, memory_id, content)
         conn.commit()
-        return cur.lastrowid
+        return memory_id
 
 
 def update_memory(memory_id: int, content: str, source: str) -> None:
@@ -189,6 +264,7 @@ def update_memory(memory_id: int, content: str, source: str) -> None:
             """,
             (content, source, utc_now(), memory_id),
         )
+        _sync_memory_fts(conn, memory_id, content)
         conn.commit()
 
 

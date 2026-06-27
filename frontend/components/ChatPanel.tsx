@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CHAT_MODES } from "@/lib/constants";
 import { useGebo } from "@/lib/GeboProvider";
-import { saveMemory, sendChat } from "@/lib/api";
+import { saveMemory, sendChatStream } from "@/lib/api";
 import type { ChatMessage, ChatMode } from "@/lib/types";
 
 const PENDING_KEY = "gebo-chat-pending";
@@ -15,6 +15,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>("ask");
   const [loading, setLoading] = useState(false);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -38,7 +39,7 @@ export function ChatPanel() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, streamingId]);
 
   const getPrefixedMessage = useCallback(
     (text: string) => {
@@ -69,37 +70,68 @@ export function ChatPanel() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    const assistantId = crypto.randomUUID();
+    setStreamingId(assistantId);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
     try {
-      const res = await sendChat(text);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: res.reply,
-          recalled: res.recalled_memories,
-          proposedActionIds: res.proposed_actions.map((a) => a.id),
-          detectedReflexes: res.detected_reflexes,
-          wikiSources: res.wiki_sources,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      const res = await sendChatStream(text, (token) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + token } : m
+          )
+        );
+      });
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                content: res.reply,
+                recalled: res.recalled_memories,
+                proposedActionIds: res.proposed_actions.map((a) => a.id),
+                detectedReflexes: res.detected_reflexes,
+                wikiSources: res.wiki_sources,
+              }
+            : m
+        )
+      );
       await refresh();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Chat failed";
       setError(msg);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: msg.includes("Ollama")
-            ? msg
-            : `Could not reach Gebo: ${msg}`,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      setMessages((prev) => {
+        const streaming = prev.find((m) => m.id === assistantId);
+        if (streaming?.content) {
+          return prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: `${m.content}\n\n— Stream interrupted: ${msg}` }
+              : m
+          );
+        }
+        return [
+          ...prev.filter((m) => m.id !== assistantId),
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: msg.includes("Ollama")
+              ? msg
+              : `Could not reach Gebo: ${msg}`,
+            timestamp: new Date().toISOString(),
+          },
+        ];
+      });
     } finally {
+      setStreamingId(null);
       setLoading(false);
     }
   }, [input, loading, online, getPrefixedMessage, refresh]);
@@ -166,7 +198,15 @@ export function ChatPanel() {
                 })}
               </span>
             </div>
-            <div className="chat-message-body">{msg.content}</div>
+            <div className="chat-message-body">
+              {msg.content ||
+                (msg.id === streamingId ? (
+                  <>
+                    <span className="loading-pulse" aria-hidden="true" /> Thinking
+                    {elapsed > 0 ? ` · ${elapsed}s` : "…"}
+                  </>
+                ) : null)}
+            </div>
 
             {msg.recalled && msg.recalled.length > 0 && (
               <div className="chat-recalled">
@@ -207,7 +247,7 @@ export function ChatPanel() {
               </div>
             )}
 
-            {msg.role === "assistant" && (
+            {msg.role === "assistant" && msg.content && msg.id !== streamingId && (
               <div className="chat-message-actions">
                 <button
                   type="button"
@@ -230,29 +270,6 @@ export function ChatPanel() {
             )}
           </div>
         ))}
-        {loading && (
-          <div className="chat-message assistant">
-            <div className="chat-message-header">
-              <span className="chat-message-role">Gebo</span>
-            </div>
-            <div className="chat-message-body">
-              <span className="loading-pulse" aria-hidden="true" /> Thinking
-              {elapsed > 0 ? ` · ${elapsed}s` : "…"}
-              {elapsed >= 6 && (
-                <span
-                  style={{
-                    display: "block",
-                    marginTop: "0.35rem",
-                    fontSize: "0.78rem",
-                    color: "var(--text-tertiary)",
-                  }}
-                >
-                  Local model is generating — this can take a few seconds.
-                </span>
-              )}
-            </div>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 

@@ -49,12 +49,12 @@ function parseErrorDetail(detail: unknown): string {
 
 async function request<T>(
   path: string,
-  options?: RequestInit & { timeoutMs?: number }
+  options?: RequestInit & { timeoutMs?: number; signal?: AbortSignal }
 ): Promise<T> {
-  const { timeoutMs = 30000, ...fetchOptions } = options ?? {};
+  const { timeoutMs = 30000, signal, ...fetchOptions } = options ?? {};
   const res = await fetch(`${getApiUrl()}${path}`, {
     ...fetchOptions,
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ?? AbortSignal.timeout(timeoutMs),
     headers: {
       "Content-Type": "application/json",
       ...fetchOptions.headers,
@@ -67,17 +67,17 @@ async function request<T>(
   return res.json();
 }
 
-export async function getHealth(): Promise<{ ok: boolean; app?: string }> {
-  return request("/health");
+export async function getHealth(signal?: AbortSignal): Promise<{ ok: boolean; app?: string }> {
+  return request("/health", { signal });
 }
 
 /** One-call system snapshot — preferred for app startup and consumer integrations. */
-export async function getBootstrap(): Promise<GeboBootstrap> {
-  return request("/integrate/bootstrap");
+export async function getBootstrap(signal?: AbortSignal): Promise<GeboBootstrap> {
+  return request("/integrate/bootstrap", { signal });
 }
 
-export async function getStatus(): Promise<Status> {
-  return request("/status");
+export async function getStatus(signal?: AbortSignal): Promise<Status> {
+  return request("/status", { signal });
 }
 
 export async function setConsent(allowed: boolean): Promise<{ consent: boolean }> {
@@ -87,8 +87,8 @@ export async function setConsent(allowed: boolean): Promise<{ consent: boolean }
   });
 }
 
-export async function getNetworkSettings(): Promise<NetworkSettings> {
-  return request("/settings/network");
+export async function getNetworkSettings(signal?: AbortSignal): Promise<NetworkSettings> {
+  return request("/settings/network", { signal });
 }
 
 export async function setNetworkSettings(
@@ -100,8 +100,8 @@ export async function setNetworkSettings(
   });
 }
 
-export async function getMemories(): Promise<Memory[]> {
-  return request("/memory");
+export async function getMemories(signal?: AbortSignal): Promise<Memory[]> {
+  return request("/memory", { signal });
 }
 
 export async function saveMemory(
@@ -120,6 +120,71 @@ export async function sendChat(message: string): Promise<ChatResponse> {
     body: JSON.stringify({ message }),
     timeoutMs: 120000,
   });
+}
+
+export async function sendChatStream(
+  message: string,
+  onToken: (token: string) => void,
+  signal?: AbortSignal
+): Promise<ChatResponse> {
+  const res = await fetch(`${getApiUrl()}/chat/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+    signal: signal ?? AbortSignal.timeout(120000),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(parseErrorDetail(err.detail) || `Request failed: ${res.status}`);
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new Error("Streaming not supported");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const payload = JSON.parse(line.slice(6)) as {
+        type: string;
+        content?: string;
+        detail?: string;
+        reply?: string;
+        recalled_memories?: ChatResponse["recalled_memories"];
+        proposed_actions?: ChatResponse["proposed_actions"];
+        detected_reflexes?: ChatResponse["detected_reflexes"];
+        wiki_sources?: string[];
+      };
+
+      if (payload.type === "token" && payload.content) {
+        onToken(payload.content);
+      } else if (payload.type === "error") {
+        throw new Error(payload.detail ?? "Chat stream failed");
+      } else if (payload.type === "done") {
+        return {
+          reply: payload.reply ?? "",
+          recalled_memories: payload.recalled_memories ?? [],
+          proposed_actions: payload.proposed_actions ?? [],
+          detected_reflexes: payload.detected_reflexes ?? [],
+          wiki_sources: payload.wiki_sources ?? [],
+        };
+      }
+    }
+  }
+
+  throw new Error("Chat stream ended without completion");
 }
 
 export async function getActions(): Promise<Action[]> {
@@ -213,9 +278,9 @@ export function getExportUrl(): string {
   return `${getApiUrl()}/memory/export`;
 }
 
-export async function checkBackendOnline(): Promise<boolean> {
+export async function checkBackendOnline(signal?: AbortSignal): Promise<boolean> {
   try {
-    await getHealth();
+    await getHealth(signal);
     return true;
   } catch {
     return false;

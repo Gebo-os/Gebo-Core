@@ -7,6 +7,12 @@ export interface Status {
   proposed_action_count: number;
   approved_action_count: number;
   completed_action_count: number;
+  ollama_runtime?: {
+    loaded?: boolean;
+    model?: string;
+    size_vram?: number;
+    size?: number;
+  } | null;
 }
 
 export interface Memory {

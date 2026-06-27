@@ -23,6 +23,7 @@ AUTO_KEYWORDS = [
 LONG_MESSAGE_THRESHOLD = 180
 RECALL_LIMIT = 8
 PROMPT_MEMORY_MAX = 500
+FTS_CANDIDATE_LIMIT = 50
 
 
 def _sanitize_for_prompt(text: str, limit: int = PROMPT_MEMORY_MAX) -> str:
@@ -69,24 +70,32 @@ def score_memory(memory_content: str, query: str) -> int:
     return score
 
 
-def get_relevant_memories(query: str, limit: int = RECALL_LIMIT) -> list[dict]:
-    all_memories = db.get_all_memories()
-    if not all_memories:
-        return []
-    scored = [(score_memory(m["content"], query), m) for m in all_memories]
+def recall_for_chat(
+    query: str, limit: int = RECALL_LIMIT
+) -> tuple[list[dict], bool]:
+    """Single-pass memory recall: FTS index + token scoring. Returns (memories, has_match)."""
+    candidates = db.search_memories_fts(query, limit=FTS_CANDIDATE_LIMIT)
+    if not candidates:
+        recent = db.get_recent_memories(limit)
+        return recent, False
+
+    scored = [(score_memory(m["content"], query), m) for m in candidates]
     scored.sort(key=lambda x: (-x[0], -x[1]["id"]))
     relevant = [m for s, m in scored if s > 0]
-    if not relevant:
-        return list(reversed(all_memories[-limit:]))
-    return relevant[:limit]
+    if relevant:
+        return relevant[:limit], True
+    return list(reversed(candidates[-limit:])), False
+
+
+def get_relevant_memories(query: str, limit: int = RECALL_LIMIT) -> list[dict]:
+    recalled, _ = recall_for_chat(query, limit)
+    return recalled
 
 
 def has_memory_match(query: str) -> bool:
-    """True if any stored memory actually matches the query tokens."""
-    for m in db.get_all_memories():
-        if score_memory(m["content"], query) > 0:
-            return True
-    return False
+    """True if any stored memory matches the query tokens."""
+    _, has_match = recall_for_chat(query, limit=1)
+    return has_match
 
 
 def build_system_prompt(

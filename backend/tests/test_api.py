@@ -159,6 +159,21 @@ def test_chat_mocked(client):
     assert "wiki_sources" in data
 
 
+def test_chat_stream_mocked(client):
+    with client.stream("POST", "/chat/stream", json={"message": "hello gebo"}) as r:
+        assert r.status_code == 200
+        events = []
+        for line in r.iter_lines():
+            if line.startswith("data: "):
+                events.append(line[6:])
+        assert events
+        import json
+
+        done = json.loads(events[-1])
+        assert done["type"] == "done"
+        assert done["reply"] == "Test reply from Gebo."
+
+
 def test_codex_status(client):
     r = client.get("/codex/status")
     assert r.status_code == 200
