@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CHAT_MODES } from "@/lib/constants";
+import { consumeChatQueue } from "@/lib/chatNav";
 import { useGebo } from "@/lib/GeboProvider";
 import { saveMemory, sendChatStream } from "@/lib/api";
 import type { ChatMessage, ChatMode } from "@/lib/types";
 
 const PENDING_KEY = "gebo-chat-pending";
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  defaultMode?: ChatMode;
+  /** Studio variant — emphasizes Build mode in empty state */
+  studio?: boolean;
+}
+
+export function ChatPanel({ defaultMode = "ask", studio = false }: ChatPanelProps) {
   const { status, refresh, refreshMemories, triggerPulse, online } = useGebo();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<ChatMode>("ask");
+  const [mode, setMode] = useState<ChatMode>(defaultMode);
   const [loading, setLoading] = useState(false);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -30,9 +37,19 @@ export function ChatPanel() {
   }, [loading]);
 
   useEffect(() => {
-    const pending = sessionStorage.getItem(PENDING_KEY);
-    if (pending) {
-      setInput(pending);
+    setMode(defaultMode);
+  }, [defaultMode]);
+
+  useEffect(() => {
+    const { prompt, mode: queuedMode } = consumeChatQueue();
+    if (queuedMode) setMode(queuedMode);
+    if (prompt) {
+      setInput(prompt);
+      return;
+    }
+    const legacy = sessionStorage.getItem(PENDING_KEY);
+    if (legacy) {
+      setInput(legacy);
       sessionStorage.removeItem(PENDING_KEY);
     }
   }, []);
@@ -180,7 +197,13 @@ export function ChatPanel() {
 
       <div className="chat-messages" role="log" aria-live="polite">
         {messages.length === 0 && (
-          <EmptyStateInline text="Start a conversation. Gebo recalls memory and proposes actions when needed." />
+          <EmptyStateInline
+            text={
+              studio
+                ? "Describe what you want to build. Gebo uses your memory and proposes safe actions."
+                : "Start a conversation. Gebo recalls memory and proposes actions when needed."
+            }
+          />
         )}
         {messages.map((msg) => (
           <div

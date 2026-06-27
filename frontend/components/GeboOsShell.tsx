@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { OsNavLink } from "@/components/OsNavLink";
+import { queueChatNavigation } from "@/lib/chatNav";
 import { useGebo } from "@/lib/GeboProvider";
 import {
   getActiveSidebarIndex,
@@ -11,6 +12,7 @@ import {
   OS_TABS,
   QUICK_COMMANDS,
   THEME_STORAGE_KEY,
+  type QuickCommand,
 } from "@/lib/osNav";
 
 function useOsTheme() {
@@ -106,9 +108,31 @@ function OsSidebar({ pathname }: { pathname: string }) {
   );
 }
 
+function QuickCommandLink({ cmd }: { cmd: QuickCommand }) {
+  const router = useRouter();
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!cmd.prompt) return;
+    e.preventDefault();
+    const href = queueChatNavigation(
+      cmd.prompt,
+      cmd.chatMode,
+      cmd.chatTarget ?? "chat"
+    );
+    router.push(href);
+  };
+
+  return (
+    <OsNavLink href={cmd.href} onClick={handleClick}>
+      <span aria-hidden="true">{cmd.icon}</span>
+      {cmd.label}
+    </OsNavLink>
+  );
+}
+
 function AssistantRail() {
-  const { geboStatus, online, agentRuntime, status } = useGebo();
-  const [listening, setListening] = useState(true);
+  const { geboStatus, online, agentRuntime, status, motionEnabled, setMotionEnabled } =
+    useGebo();
 
   const memoryGb = ((status?.memory_count ?? 0) * 0.5 + 8).toFixed(0);
   const contextTokens = Math.min(
@@ -123,7 +147,7 @@ function AssistantRail() {
         <span>Always at your service</span>
       </header>
       <div
-        className={`os-assistant-wave ${listening ? "active" : "paused"}`}
+        className={`os-assistant-wave ${motionEnabled ? "active" : "paused"}`}
         aria-hidden="true"
       >
         {Array.from({ length: 24 }).map((_, i) => (
@@ -132,27 +156,25 @@ function AssistantRail() {
       </div>
       <p className="os-assistant-label">
         {online
-          ? listening
-            ? `${geboStatus} · Listening…`
-            : `${geboStatus} · Paused`
+          ? motionEnabled
+            ? `${geboStatus} · Live sync`
+            : `${geboStatus} · Animations paused`
           : "Backend offline"}
       </p>
       <button
         type="button"
         className="os-assistant-stop"
-        onClick={() => setListening((v) => !v)}
+        onClick={() => setMotionEnabled(!motionEnabled)}
+        aria-pressed={!motionEnabled}
       >
-        {listening ? "Stop Listening" : "Start Listening"}
+        {motionEnabled ? "Pause Animations" : "Enable Animations"}
       </button>
       <div className="os-quick-section">
         <span className="os-quick-title">Quick Commands</span>
         <ul className="os-quick-commands">
           {QUICK_COMMANDS.map((cmd) => (
             <li key={cmd.label}>
-              <OsNavLink href={cmd.href}>
-                <span aria-hidden="true">{cmd.icon}</span>
-                {cmd.label}
-              </OsNavLink>
+              <QuickCommandLink cmd={cmd} />
             </li>
           ))}
         </ul>
@@ -190,7 +212,8 @@ function OsCommandDock() {
     e.preventDefault();
     const text = query.trim();
     if (!text) return;
-    sessionStorage.setItem("gebo-chat-pending", text);
+    queueChatNavigation(text);
+    setQuery("");
     router.push("/chat");
   };
 
@@ -227,7 +250,7 @@ function OsCommandDock() {
         <OsNavLink href="/actions" title="Actions" aria-label="Actions">
           ◇
         </OsNavLink>
-        <OsNavLink href="/reflexes" title="AI" aria-label="AI">
+        <OsNavLink href="/studio" title="AI Studio" aria-label="AI Studio">
           ✦
         </OsNavLink>
         <OsNavLink href="/build-log" title="Code" aria-label="Code">
@@ -255,6 +278,8 @@ function OsTopBar({
 }) {
   const { online, status } = useGebo();
   const modelShort = status?.model?.split(":")[0] ?? null;
+  const actionCount =
+    (status?.proposed_action_count ?? 0) + (status?.approved_action_count ?? 0);
 
   return (
     <header className="os-pulse-header">
@@ -304,10 +329,18 @@ function OsTopBar({
         <OsNavLink
           href="/actions"
           className="os-header-icon"
-          aria-label="Notifications"
+          aria-label={
+            actionCount > 0
+              ? `Notifications — ${actionCount} pending action(s)`
+              : "Notifications"
+          }
         >
           🔔
-          {online && <span className="os-header-badge" aria-hidden="true" />}
+          {online && actionCount > 0 && (
+            <span className="os-header-badge" aria-hidden="true">
+              {actionCount > 9 ? "9+" : actionCount}
+            </span>
+          )}
         </OsNavLink>
         <OsNavLink
           href="/settings"

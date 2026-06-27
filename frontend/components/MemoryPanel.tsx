@@ -5,7 +5,7 @@ import { EmptyState } from "./EmptyState";
 import { MemoryCard } from "./MemoryCard";
 import { MEMORY_TYPE_FILTERS, MEMORY_TYPES } from "@/lib/constants";
 import { useGebo } from "@/lib/GeboProvider";
-import { getExportUrl, saveMemory } from "@/lib/api";
+import { downloadMemoryExport, saveMemory } from "@/lib/api";
 import type { Memory } from "@/lib/types";
 
 export function MemoryPanel() {
@@ -17,6 +17,7 @@ export function MemoryPanel() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sources = useMemo(() => {
@@ -148,14 +149,24 @@ export function MemoryPanel() {
             </option>
           ))}
         </select>
-        <a
-          href={getExportUrl()}
+        <button
+          type="button"
           className="btn btn-secondary"
-          target="_blank"
-          rel="noopener noreferrer"
+          disabled={!online || exporting}
+          onClick={async () => {
+            setError(null);
+            setExporting(true);
+            try {
+              await downloadMemoryExport();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Export failed");
+            } finally {
+              setExporting(false);
+            }
+          }}
         >
-          Export Memory
-        </a>
+          {exporting ? "Exporting…" : "Export Memory"}
+        </button>
       </div>
 
       {filtered.length === 0 ? (

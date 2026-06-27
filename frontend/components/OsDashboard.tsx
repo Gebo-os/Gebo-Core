@@ -182,7 +182,7 @@ export function ComputeOverviewWidget() {
         </div>
         <div>
           <dt>Temperature</dt>
-          <dd>{Math.round(temperature)}°C</dd>
+          <dd>{Math.round(temperature)}°C est.</dd>
         </div>
       </dl>
       <Link href="/chat" className="os-widget-link">
@@ -266,7 +266,7 @@ export function MemoryFabricWidget() {
             <span key={i} style={{ height: `${20 + (i % 5) * 12}%` }} />
           ))}
         </span>
-        <span>Bandwidth: {(count * 0.05 + 0.8).toFixed(1)} TB/s</span>
+        <span>Bandwidth: {(count * 0.05 + 0.8).toFixed(1)} GB/s est.</span>
         <span>{new Set(memories.map((m) => m.memory_type)).size} types</span>
       </div>
     </OsWidget>
@@ -275,11 +275,10 @@ export function MemoryFabricWidget() {
 
 export function GlobalNetworkWidget() {
   const { network, agentRuntime, online, status } = useGebo();
-  const nodes = (agentRuntime?.total_registry ?? 24) * 1000 + (status?.memory_count ?? 0) * 37;
-  const regions = network?.internet_access ? 156 : 12;
+  const nodes = agentRuntime?.total_registry ?? (online ? 1 : 0);
   const traffic = online
-    ? `${((status?.message_count ?? 0) * 0.01 + 0.4).toFixed(1)} Gbps`
-    : "0 Gbps";
+    ? `${((status?.message_count ?? 0) * 0.01 + 0.4).toFixed(1)} msg/min est.`
+    : "0";
 
   return (
     <OsWidget title="Global Network">
@@ -302,18 +301,18 @@ export function GlobalNetworkWidget() {
       <dl className="os-stat-grid os-stat-grid-3">
         <div>
           <dt>Nodes</dt>
-          <dd>{nodes.toLocaleString()}</dd>
+          <dd>{nodes}</dd>
         </div>
         <div>
-          <dt>Regions</dt>
-          <dd>{regions}</dd>
+          <dt>Internet</dt>
+          <dd>{network?.internet_access ? "On" : "Local only"}</dd>
         </div>
         <div>
-          <dt>Traffic</dt>
+          <dt>Activity</dt>
           <dd>{traffic}</dd>
         </div>
       </dl>
-      <Link href="/settings" className="os-widget-link">
+      <Link href="/settings#network" className="os-widget-link">
         Network Settings →
       </Link>
     </OsWidget>
@@ -332,16 +331,18 @@ export function IntelligenceFeed() {
         <ul className="os-feed-list">
           {items.map((m) => (
             <li key={m.id}>
-              <span className="os-feed-dot" aria-hidden="true" />
-              <div className="os-feed-body">
-                <span className="os-feed-text">
-                  {m.content.slice(0, 64)}
-                  {m.content.length > 64 ? "…" : ""}
-                </span>
-                <span className="os-feed-time">
-                  {formatRelativeTime(m.created_at)}
-                </span>
-              </div>
+              <Link href="/memory" className="os-feed-link">
+                <span className="os-feed-dot" aria-hidden="true" />
+                <div className="os-feed-body">
+                  <span className="os-feed-text">
+                    {m.content.slice(0, 64)}
+                    {m.content.length > 64 ? "…" : ""}
+                  </span>
+                  <span className="os-feed-time">
+                    {formatRelativeTime(m.created_at)}
+                  </span>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
@@ -440,35 +441,38 @@ export function SystemOrchestration() {
   );
 }
 
-const DEVICE_MAP = [
-  { name: "GPhone", icon: "📱", presenceId: "gebo" },
-  { name: "GBook Pro", icon: "💻", presenceId: "lockin" },
-  { name: "GTab", icon: "📋", presenceId: "mya" },
-  { name: "GWatch", icon: "⌚", presenceId: "dream" },
-  { name: "GPod", icon: "🎧", presenceId: "slatt" },
-];
+const DEVICE_ICONS: Record<string, string> = {
+  gebo: "G",
+  lockin: "L",
+  dream: "D",
+  mya: "M",
+  slatt: "S",
+  sleep: "Z",
+  dark: "—",
+};
 
 export function DeviceContinuityWidget() {
   const { presences, online } = useGebo();
+  const devices = presences.slice(0, 5);
 
   return (
     <OsWidget title="Device Continuity">
       <ul className="os-device-grid">
-        {DEVICE_MAP.map((device) => {
-          const presence = presences.find((p) => p.id === device.presenceId);
+        {devices.map((presence) => {
           const active =
             online &&
-            presence &&
             (presence.status === "Awake" || presence.status === "Quiet");
           return (
-            <li key={device.name} className={active ? "active" : ""}>
-              <span className="os-device-icon" aria-hidden="true">
-                {device.icon}
-              </span>
-              <span className="os-device-name">{device.name}</span>
-              <span className={`os-device-status ${active ? "on" : ""}`}>
-                {active ? "Active" : "Idle"}
-              </span>
+            <li key={presence.id} className={active ? "active" : ""}>
+              <Link href="/presences" className="os-device-link">
+                <span className="os-device-icon" aria-hidden="true">
+                  {DEVICE_ICONS[presence.id] ?? presence.mark}
+                </span>
+                <span className="os-device-name">{presence.name}</span>
+                <span className={`os-device-status ${active ? "on" : ""}`}>
+                  {active ? presence.status : "Idle"}
+                </span>
+              </Link>
             </li>
           );
         })}

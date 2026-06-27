@@ -28,7 +28,7 @@ export function OsNavLink({ href, onClick, ...props }: OsNavLinkProps) {
       typeof href === "string"
         ? href
         : typeof href === "object" && href.pathname
-          ? href.pathname
+          ? `${href.pathname}${href.hash ?? ""}`
           : null;
 
     if (!target || !motionEnabled) return;

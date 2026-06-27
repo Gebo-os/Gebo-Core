@@ -41,6 +41,18 @@ Or from project root:
 .\scripts\start-gebo-desktop.ps1
 ```
 
+### ffmpeg.dll not found
+
+If Electron fails with **ffmpeg.dll not found**, repair the binary:
+
+```powershell
+cd desktop
+node scripts/ensure-electron.js
+npm start
+```
+
+`ensure-electron.js` re-downloads and fully extracts `electron.exe` + `ffmpeg.dll` when npm leaves a partial install (locales-only folder).
+
 ## What it does
 
 1. Checks if backend (`:8000`) and frontend (`:3000`) are already running

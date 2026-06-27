@@ -24,11 +24,16 @@ if (-not (Test-Path $Python)) {
   Pop-Location
 }
 
-# Ensure desktop deps
+# Ensure desktop deps + Electron binary (ffmpeg.dll)
 if (-not (Test-Path (Join-Path $DesktopDir "node_modules"))) {
   Write-Host "Installing desktop (Electron) dependencies..."
   Push-Location $DesktopDir
   npm install
+  Pop-Location
+} else {
+  Push-Location $DesktopDir
+  node scripts/ensure-electron.js
+  if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }
   Pop-Location
 }
 

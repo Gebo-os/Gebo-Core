@@ -8,18 +8,77 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
-const FRONTEND_URL = "http://localhost:3000";
+const FRONTEND_URL = "http://127.0.0.1:3000";
 const BACKEND_URL = "http://127.0.0.1:8000";
-const ROOT = path.resolve(__dirname, "..");
-const BACKEND_DIR = path.join(ROOT, "backend");
-const FRONTEND_DIR = path.join(ROOT, "frontend");
-const PYTHON = path.join(BACKEND_DIR, ".venv", "Scripts", "python.exe");
-const UVICORN = path.join(BACKEND_DIR, ".venv", "Scripts", "uvicorn.exe");
 const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
+
+let ROOT = "";
+let BACKEND_DIR = "";
+let FRONTEND_DIR = "";
+let PYTHON = "";
+let UVICORN = "";
 
 /** @type {import('child_process').ChildProcess[]} */
 const children = [];
 let mainWindow = null;
+
+function resolveGeboRoot() {
+  if (process.env.GEBO_ROOT) {
+    const envRoot = path.resolve(process.env.GEBO_ROOT);
+    if (fs.existsSync(path.join(envRoot, "backend", "app", "main.py"))) {
+      return envRoot;
+    }
+  }
+
+  const devRoot = path.resolve(__dirname, "..");
+  if (fs.existsSync(path.join(devRoot, "backend", "app", "main.py"))) {
+    return devRoot;
+  }
+
+  const exeDir = path.dirname(process.execPath);
+  const configPath = path.join(exeDir, "gebo-root.json");
+  if (fs.existsSync(configPath)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (cfg.root) {
+        const configured = path.resolve(cfg.root);
+        if (fs.existsSync(path.join(configured, "backend", "app", "main.py"))) {
+          return configured;
+        }
+      }
+    } catch {
+      /* ignore malformed config */
+    }
+  }
+
+  const home = app.getPath("home");
+  const candidates = [
+    path.join(exeDir, "gebo-core-private"),
+    path.join(exeDir, "..", "Official Owner NODE", "gebo-core-private"),
+    path.join(home, "Desktop", "Official Owner NODE", "gebo-core-private"),
+    path.join(home, "Documents", "gebo-core-private"),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, "backend", "app", "main.py"))) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    "Could not find Gebo Core repo.\n\n" +
+      "Place gebo-root.json next to this app with: {\"root\": \"C:\\\\path\\\\to\\\\gebo-core-private\"}\n" +
+      "Or set GEBO_ROOT environment variable."
+  );
+}
+
+function initPaths() {
+  ROOT = resolveGeboRoot();
+  BACKEND_DIR = path.join(ROOT, "backend");
+  FRONTEND_DIR = path.join(ROOT, "frontend");
+  PYTHON = path.join(BACKEND_DIR, ".venv", "Scripts", "python.exe");
+  UVICORN = path.join(BACKEND_DIR, ".venv", "Scripts", "uvicorn.exe");
+}
 
 function ping(url) {
   return new Promise((resolve) => {
@@ -95,7 +154,6 @@ function killPort8000Windows() {
 async function ensureBackend() {
   if (await bootstrapReady()) return;
 
-  // Stale backend answers /health but not /integrate/bootstrap — replace it.
   if (await ping(`${BACKEND_URL}/health`)) {
     if (process.platform === "win32") killPort8000Windows();
     await new Promise((r) => setTimeout(r, 2000));
@@ -105,7 +163,7 @@ async function ensureBackend() {
 
   if (!fs.existsSync(PYTHON)) {
     throw new Error(
-      `Python venv not found at ${PYTHON}. Run: cd backend; python -m venv .venv; pip install -r requirements.txt`
+      `Python venv not found at ${PYTHON}.\nRun: cd backend && python -m venv .venv && pip install -r requirements.txt`
     );
   }
 
@@ -125,9 +183,9 @@ async function ensureFrontend() {
   const hasBuild = fs.existsSync(nextDir);
 
   if (hasBuild) {
-    spawnHidden(NPM, ["run", "start", "--", "-p", "3000"], FRONTEND_DIR);
+    spawnHidden(NPM, ["run", "start", "--", "-H", "127.0.0.1", "-p", "3000"], FRONTEND_DIR);
   } else {
-    spawnHidden(NPM, ["run", "dev", "--", "-p", "3000"], FRONTEND_DIR);
+    spawnHidden(NPM, ["run", "dev", "--", "-H", "127.0.0.1", "-p", "3000"], FRONTEND_DIR);
   }
   await waitFor(FRONTEND_URL, "Frontend", 90);
 }
@@ -164,7 +222,10 @@ function shutdownChildren() {
   for (const child of children) {
     try {
       if (process.platform === "win32") {
-        spawn("taskkill", ["/pid", String(child.pid), "/f", "/t"], { stdio: "ignore", windowsHide: true });
+        spawn("taskkill", ["/pid", String(child.pid), "/f", "/t"], {
+          stdio: "ignore",
+          windowsHide: true,
+        });
       } else {
         child.kill("SIGTERM");
       }
@@ -175,8 +236,23 @@ function shutdownChildren() {
   children.length = 0;
 }
 
+function ensureElectronBinaryDev() {
+  if (app.isPackaged) return;
+  const electronDist = path.join(ROOT, "node_modules", "electron", "dist");
+  const exe = path.join(electronDist, "electron.exe");
+  const ffmpeg = path.join(electronDist, "ffmpeg.dll");
+  if (!fs.existsSync(exe) || !fs.existsSync(ffmpeg)) {
+    throw new Error(
+      `Electron binary incomplete (missing electron.exe or ffmpeg.dll).\n` +
+        `Run: cd desktop && node scripts/ensure-electron.js`
+    );
+  }
+}
+
 app.whenReady().then(async () => {
   try {
+    initPaths();
+    ensureElectronBinaryDev();
     await ensureBackend();
     await ensureFrontend();
     createWindow();

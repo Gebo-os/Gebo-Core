@@ -18,20 +18,20 @@ export interface OsTabItem {
 export const OS_SIDEBAR: OsNavItem[] = [
   { label: "Command Center", href: "/", icon: "⌂", match: ["/"] },
   { label: "Chat", href: "/chat", icon: "◎", match: ["/chat"] },
-  { label: "AI Studio", href: "/chat", icon: "✦", match: ["/chat"] },
+  { label: "AI Studio", href: "/studio", icon: "✦", match: ["/studio"] },
   { label: "Memory Fabric", href: "/memory", icon: "◈", match: ["/memory"] },
   { label: "Presences", href: "/presences", icon: "⊞", match: ["/presences"] },
   { label: "Actions", href: "/actions", icon: "◇", match: ["/actions"] },
   { label: "Reflexes", href: "/reflexes", icon: "⟳", match: ["/reflexes"] },
   { label: "Evolution", href: "/evolution", icon: "⬡", match: ["/evolution"] },
   { label: "Build Log", href: "/build-log", icon: "▣", match: ["/build-log"] },
-  { label: "Network", href: "/settings", icon: "⬡", match: ["/settings"] },
+  { label: "Network", href: "/settings#network", icon: "⬡", match: ["/settings"] },
   { label: "Settings", href: "/settings", icon: "⚙", match: ["/settings"] },
 ];
 
 export const OS_TABS: OsTabItem[] = [
   { id: "command", label: "Command Center", href: "/", match: ["/"] },
-  { id: "compute", label: "Compute", href: "/chat", match: ["/chat"] },
+  { id: "compute", label: "Compute", href: "/chat", match: ["/chat", "/studio"] },
   { id: "memory", label: "Memory", href: "/memory", match: ["/memory"] },
   { id: "network", label: "Network", href: "/presences", match: ["/presences"] },
   {
@@ -49,13 +49,37 @@ export const OS_TABS: OsTabItem[] = [
   },
 ];
 
-export const QUICK_COMMANDS = [
+export interface QuickCommand {
+  label: string;
+  href: string;
+  icon: string;
+  /** Pre-fill chat and navigate instead of plain link */
+  prompt?: string;
+  chatMode?: "ask" | "remember" | "plan" | "build" | "search";
+  chatTarget?: "chat" | "studio";
+}
+
+export const QUICK_COMMANDS: QuickCommand[] = [
   { label: "Optimize System", href: "/settings", icon: "⚡" },
   { label: "Deep Scan", href: "/reflexes", icon: "🔍" },
-  { label: "Summarize Activity", href: "/build-log", icon: "📋" },
+  {
+    label: "Summarize Activity",
+    href: "/chat",
+    icon: "📋",
+    prompt:
+      "Summarize my recent activity across memories, proposed actions, and build log entries.",
+    chatMode: "ask",
+  },
   { label: "Create Automation", href: "/reflexes", icon: "⟳" },
-  { label: "Generate Report", href: "/build-log", icon: "📊" },
-] as const;
+  {
+    label: "Generate Report",
+    href: "/chat",
+    icon: "📊",
+    prompt:
+      "Generate a concise status report for my Gebo Owner NODE: system health, memory count, pending actions, and suggested next steps.",
+    chatMode: "plan",
+  },
+];
 
 export function isRouteActive(pathname: string, match: string[]): boolean {
   if (match.includes(pathname)) return true;

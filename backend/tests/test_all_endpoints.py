@@ -97,6 +97,23 @@ def test_chat_endpoint(client):
     assert isinstance(data["wiki_sources"], list)
 
 
+def test_chat_stream_endpoint(client):
+    with client.stream(
+        "POST", "/chat/stream", json={"message": "ping gebo stream test"}
+    ) as r:
+        assert r.status_code == 200
+        events = []
+        for line in r.iter_lines():
+            if line.startswith("data: "):
+                events.append(line[6:])
+        assert events
+        import json
+
+        done = json.loads(events[-1])
+        assert done["type"] == "done"
+        assert done["reply"]
+
+
 def test_actions_full_lifecycle(client):
     proposed = client.post(
         "/actions/propose",

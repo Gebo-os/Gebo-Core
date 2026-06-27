@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useGebo } from "@/lib/GeboProvider";
 
 export function OsCenterEmblem() {
@@ -12,7 +13,7 @@ export function OsCenterEmblem() {
         : "setup";
 
   return (
-    <div className="os-emblem-wrap">
+    <Link href="/chat" className="os-emblem-wrap os-emblem-link" aria-label="Open Gebo Chat">
       <div className="os-emblem-rings" aria-hidden="true">
         <span className="os-emblem-ring os-emblem-ring-1" />
         <span className="os-emblem-ring os-emblem-ring-2" />
@@ -29,6 +30,6 @@ export function OsCenterEmblem() {
         </p>
         <p className="os-emblem-mission">{mission}</p>
       </div>
-    </div>
+    </Link>
   );
 }

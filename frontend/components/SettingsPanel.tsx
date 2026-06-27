@@ -1,7 +1,8 @@
 "use client";
 
-import { getApiUrl, getExportUrl } from "@/lib/api";
+import { useEffect, useState } from "react";
 import { IntegrationsLearnPanel } from "@/components/IntegrationsLearnPanel";
+import { downloadMemoryExport, getApiUrl } from "@/lib/api";
 import { SAFETY_RULES } from "@/lib/constants";
 import { useGebo } from "@/lib/GeboProvider";
 import { isRecaptchaConfigured } from "@/lib/recaptcha";
@@ -22,6 +23,27 @@ export function SettingsPanel() {
     toggleInternetAccess,
     networkLoading,
   } = useGebo();
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.location.hash) return;
+    const id = window.location.hash.slice(1);
+    const el = document.getElementById(id);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handleExport = async () => {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadMemoryExport();
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const pendingTotal =
     (status?.proposed_action_count ?? 0) +
@@ -57,15 +79,20 @@ export function SettingsPanel() {
             <h4>Export Memory</h4>
             <p>Download all memories, messages, settings, and actions as JSON.</p>
           </div>
-          <a
-            href={getExportUrl()}
+          <button
+            type="button"
             className="btn btn-secondary"
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={handleExport}
+            disabled={!online || exporting}
           >
-            Export
-          </a>
+            {exporting ? "Exporting…" : "Export"}
+          </button>
         </div>
+        {exportError && (
+          <p className="alert alert-error" role="alert">
+            {exportError}
+          </p>
+        )}
       </section>
 
       <section className="settings-section panel">
@@ -89,7 +116,7 @@ export function SettingsPanel() {
         </div>
       </section>
 
-      <section className="settings-section panel">
+      <section id="network" className="settings-section panel">
         <h2 className="settings-section-title">Network &amp; Localhost</h2>
         <div className="settings-row">
           <div className="settings-row-info">

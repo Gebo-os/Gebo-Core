@@ -50,22 +50,6 @@ export function MemoryCard({ memory, onView, expanded }: MemoryCardProps) {
         >
           Copy
         </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled
-          title="Archive not available in V0"
-        >
-          Archive
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost"
-          disabled
-          title="Delete not supported by backend"
-        >
-          Delete
-        </button>
       </div>
     </article>
   );

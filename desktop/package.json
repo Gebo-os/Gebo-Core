@@ -5,9 +5,11 @@
   "main": "main.js",
   "private": true,
   "scripts": {
-    "start": "electron .",
+    "postinstall": "node scripts/ensure-electron.js",
+    "start": "node scripts/ensure-electron.js && electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win dir",
+    "download": "powershell -ExecutionPolicy Bypass -File ..\\scripts\\build-gebo-download.ps1"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -24,7 +26,10 @@
       "preload.js"
     ],
     "win": {
-      "target": ["portable"]
+      "target": [
+        "dir"
+      ],
+      "signAndEditExecutable": false
     },
     "extraResources": []
   }
