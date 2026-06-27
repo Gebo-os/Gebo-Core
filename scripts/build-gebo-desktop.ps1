@@ -32,12 +32,12 @@ if (-not (Test-Path "node_modules")) {
     Write-Host "Installing Electron..." -ForegroundColor Yellow
     npm install
 }
-Write-Host "Packaging portable .exe (may take a few minutes)..." -ForegroundColor Cyan
-npm run dist
+Write-Host "Packaging app (no code signing)..." -ForegroundColor Cyan
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+npm run pack
 Pop-Location
 
-$Portable = Get-ChildItem -Path (Join-Path $Desktop "dist") -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending |
+$Portable = Get-ChildItem -Path (Join-Path $Desktop "dist\win-unpacked") -Filter "Gebo Owner NODE.exe" -ErrorAction SilentlyContinue |
     Select-Object -First 1
 
 if (-not $Portable) {

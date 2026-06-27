@@ -13,6 +13,8 @@ import {
   checkBackendOnline,
   getBootstrap,
   getMemories,
+  getNetworkSettings,
+  getStatus,
   setConsent as apiSetConsent,
   setNetworkSettings as apiSetNetworkSettings,
 } from "@/lib/api";

@@ -29,6 +29,8 @@ def test_all_get_endpoints(client):
         ("/system/production-readiness", lambda d: "readiness_score" in d),
         ("/system/v1-readiness", lambda d: d.get("official_stack") == "supabase_vercel_v1"),
         ("/system/modules", lambda d: d.get("count") == 8),
+        ("/v1/billing/plans", lambda d: "plans" in d and len(d["plans"]) >= 1),
+        ("/v1/identity/owner-status", lambda d: d.get("owner_mode") is True),
     ]
     for path, validator in checks:
         r = client.get(path)
@@ -238,3 +240,19 @@ def test_system_build_endpoint(client):
     assert data["ok"] is True
     assert "manifest" in data
     assert data["manifest"]["version"] >= 1
+
+
+def test_v1_turnstile_endpoint(client):
+    r = client.post("/v1/security/verify-turnstile", json={"token": ""})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["success"] is False
+    assert "error" in data or "error_codes" in data
+
+
+def test_knowledge_collect_endpoint(client):
+    r = client.post("/knowledge/collect")
+    assert r.status_code == 200
+    data = r.json()
+    assert "catalog" in data
+    assert isinstance(data["catalog"], dict)

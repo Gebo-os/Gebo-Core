@@ -308,13 +308,30 @@ Verify everything in parallel:
 
 ---
 
+## V1 release stack (Owner NODE)
+
+Official production stack: **Supabase + Vercel + Stripe + Upstash** (wired in code; cloud env optional on owner node).
+
+| Script | Purpose |
+|--------|---------|
+| `.\scripts\start-gebo.ps1` | Unified launcher (`-Mode wifi`, `localhost`, or `desktop`) |
+| `.\scripts\restart-gebo-backend.ps1` | Restart backend; verifies `/integrate/bootstrap` |
+| `.\scripts\verify-v1-readiness.ps1` | V1 readiness + module status |
+| `.\scripts\build-gebo-desktop.ps1` | Package portable **Gebo Owner NODE** `.exe` |
+
+Readiness endpoints: `GET /system/v1-readiness`, `GET /system/modules`, `GET /v1/billing/plans`, `GET /v1/identity/owner-status`.
+
+Owner mode keeps auth open locally — set `GEBO_RELEASE_MODE=production` + Supabase env for cloud auth.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | **Ollama not running** | Start Ollama app. Run `ollama list` to verify. |
 | **Model not pulled** | Run `ollama pull llama3.2:3b` |
-| **Backend port busy** | Stop other apps on port 8000, or change port in uvicorn command |
+| **Backend port busy** | Run `.\scripts\restart-gebo-backend.ps1` or stop other apps on port 8000 |
 | **Frontend port busy** | Run `npm run dev -- -p 3001` and open http://localhost:3001 |
 | **Docker cannot reach Ollama** | Use `OLLAMA_BASE_URL=http://host.docker.internal:11434` |
 | **Chat returns 503** | Ollama unreachable — check it's running and model is installed |
